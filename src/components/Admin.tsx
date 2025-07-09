@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,24 +8,62 @@ import { Badge } from '@/components/ui/badge';
 import { User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Users, Shield, UserCheck, UserX, Edit3, Save, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Settings, Users, Shield, UserCheck, UserX, Edit3, Save, X, Loader2 } from 'lucide-react';
+
+interface DatabaseUser {
+  id: string;
+  code: string;
+  name: string | null;
+  role: string | null;
+  is_admin: boolean | null;
+}
 
 const Admin: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const isPermanentAdmin = user?.code === '10101';
   
-  const [users, setUsers] = useState<User[]>([
-    { code: '10101', name: 'Permanent Admin', role: 'Team Captain', isAdmin: true },
-    { code: '12345', name: 'John Smith', role: 'Programmer', isAdmin: false },
-    { code: '54321', name: 'Sarah Johnson', role: 'Designer', isAdmin: false },
-    { code: '11111', name: 'Mike Wilson', role: 'Build Lead', isAdmin: true },
-    { code: '22222', name: 'Emily Davis', role: 'Safety Officer', isAdmin: false },
-  ]);
-
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', role: '' });
   const [newUserCode, setNewUserCode] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Load users from database
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const mappedUsers: User[] = data.map((dbUser: DatabaseUser) => ({
+        code: dbUser.code,
+        name: dbUser.name || `User ${dbUser.code}`,
+        role: dbUser.role || 'Team Member',
+        isAdmin: dbUser.is_admin || false
+      }));
+
+      setUsers(mappedUsers);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      toast({
+        title: "Error Loading Users",
+        description: "Could not load user data from database.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEditUser = (userCode: string) => {
     const userToEdit = users.find(u => u.code === userCode);
@@ -35,17 +73,40 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handleSaveEdit = (userCode: string) => {
-    setUsers(prev => prev.map(u => 
-      u.code === userCode 
-        ? { ...u, name: editForm.name, role: editForm.role }
-        : u
-    ));
-    setEditingUser(null);
-    toast({
-      title: "User Updated",
-      description: `User ${userCode} has been updated successfully.`,
-    });
+  const handleSaveEdit = async (userCode: string) => {
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: editForm.name,
+          role: editForm.role,
+          updated_at: new Date().toISOString()
+        })
+        .eq('code', userCode);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.map(u => 
+        u.code === userCode 
+          ? { ...u, name: editForm.name, role: editForm.role }
+          : u
+      ));
+      setEditingUser(null);
+      toast({
+        title: "User Updated",
+        description: `User ${userCode} has been updated successfully.`,
+      });
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Update Failed",
+        description: "Could not update user information.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -53,7 +114,7 @@ const Admin: React.FC = () => {
     setEditForm({ name: '', role: '' });
   };
 
-  const toggleAdminStatus = (userCode: string) => {
+  const toggleAdminStatus = async (userCode: string) => {
     if (userCode === '10101') {
       toast({
         title: "Action Not Allowed",
@@ -72,18 +133,42 @@ const Admin: React.FC = () => {
       return;
     }
 
-    setUsers(prev => prev.map(u => 
-      u.code === userCode ? { ...u, isAdmin: !u.isAdmin } : u
-    ));
-
     const targetUser = users.find(u => u.code === userCode);
-    toast({
-      title: targetUser?.isAdmin ? "Admin Rights Removed" : "Admin Rights Granted",
-      description: `User ${userCode} admin status has been updated.`,
-    });
+    if (!targetUser) return;
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          is_admin: !targetUser.isAdmin,
+          updated_at: new Date().toISOString()
+        })
+        .eq('code', userCode);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.map(u => 
+        u.code === userCode ? { ...u, isAdmin: !u.isAdmin } : u
+      ));
+
+      toast({
+        title: targetUser.isAdmin ? "Admin Rights Removed" : "Admin Rights Granted",
+        description: `User ${userCode} admin status has been updated.`,
+      });
+    } catch (error) {
+      console.error('Error updating admin status:', error);
+      toast({
+        title: "Update Failed",
+        description: "Could not update admin status.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (newUserCode.length !== 5 || !/^\d{5}$/.test(newUserCode)) {
       toast({
         title: "Invalid Code",
@@ -102,19 +187,44 @@ const Admin: React.FC = () => {
       return;
     }
 
-    const newUser: User = {
-      code: newUserCode,
-      name: `User ${newUserCode}`,
-      role: 'Team Member',
-      isAdmin: false
-    };
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([{
+          code: newUserCode,
+          name: `User ${newUserCode}`,
+          role: 'Team Member',
+          is_admin: false
+        }])
+        .select()
+        .single();
 
-    setUsers(prev => [...prev, newUser]);
-    setNewUserCode('');
-    toast({
-      title: "User Added",
-      description: `User ${newUserCode} has been added to the system.`,
-    });
+      if (error) throw error;
+
+      const newUser: User = {
+        code: data.code,
+        name: data.name || `User ${data.code}`,
+        role: data.role || 'Team Member',
+        isAdmin: data.is_admin || false
+      };
+
+      setUsers(prev => [...prev, newUser]);
+      setNewUserCode('');
+      toast({
+        title: "User Added",
+        description: `User ${newUserCode} has been added to the system.`,
+      });
+    } catch (error) {
+      console.error('Error adding user:', error);
+      toast({
+        title: "Add User Failed",
+        description: "Could not add user to database.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!user?.isAdmin) {
@@ -124,6 +234,17 @@ const Admin: React.FC = () => {
           <Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
           <p className="text-muted-foreground">You need admin privileges to access this section.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 mx-auto animate-spin text-frc-blue mb-4" />
+          <p className="text-muted-foreground">Loading user data...</p>
         </div>
       </div>
     );
@@ -178,15 +299,23 @@ const Admin: React.FC = () => {
                 placeholder="Enter 5-digit code"
                 className="font-mono"
                 maxLength={5}
+                disabled={submitting}
               />
             </div>
             <div className="flex items-end">
               <Button 
                 onClick={handleAddUser}
-                disabled={newUserCode.length !== 5}
+                disabled={newUserCode.length !== 5 || submitting}
                 className="frc-accent-button text-white"
               >
-                Add User
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  'Add User'
+                )}
               </Button>
             </div>
           </div>
@@ -198,7 +327,7 @@ const Admin: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
-            User Management
+            User Management ({users.length} users)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -217,6 +346,7 @@ const Admin: React.FC = () => {
                           id={`name-${userItem.code}`}
                           value={editForm.name}
                           onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                          disabled={submitting}
                         />
                       </div>
                       <div>
@@ -225,6 +355,7 @@ const Admin: React.FC = () => {
                           id={`role-${userItem.code}`}
                           value={editForm.role}
                           onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
+                          disabled={submitting}
                         />
                       </div>
                     </div>
@@ -256,13 +387,19 @@ const Admin: React.FC = () => {
                         size="sm"
                         onClick={() => handleSaveEdit(userItem.code)}
                         className="frc-button text-white"
+                        disabled={submitting}
                       >
-                        <Save className="w-4 h-4" />
+                        {submitting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={handleCancelEdit}
+                        disabled={submitting}
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -273,6 +410,7 @@ const Admin: React.FC = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => handleEditUser(userItem.code)}
+                        disabled={submitting}
                       >
                         <Edit3 className="w-4 h-4" />
                       </Button>
@@ -282,8 +420,11 @@ const Admin: React.FC = () => {
                           variant={userItem.isAdmin ? "destructive" : "default"}
                           onClick={() => toggleAdminStatus(userItem.code)}
                           className={userItem.isAdmin ? "" : "frc-accent-button text-white"}
+                          disabled={submitting}
                         >
-                          {userItem.isAdmin ? (
+                          {submitting ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : userItem.isAdmin ? (
                             <UserX className="w-4 h-4" />
                           ) : (
                             <UserCheck className="w-4 h-4" />

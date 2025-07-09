@@ -5,27 +5,41 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn, Zap } from 'lucide-react';
+import { LogIn, Zap, Loader2 } from 'lucide-react';
 
 const LoginForm: React.FC = () => {
   const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
-    if (login(code)) {
+    try {
+      const success = await login(code);
+      
+      if (success) {
+        toast({
+          title: "Login Successful",
+          description: "Welcome to the FRC Team Portal!",
+        });
+      } else {
+        toast({
+          title: "Login Failed",
+          description: "Please enter a valid 5-digit code.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Login Successful",
-        description: "Welcome to the FRC Team Portal!",
-      });
-    } else {
-      toast({
-        title: "Login Failed",
-        description: "Please enter a valid 5-digit code.",
+        title: "Login Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -59,14 +73,22 @@ const LoginForm: React.FC = () => {
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
                   className="text-center text-lg font-mono tracking-widest"
                   maxLength={5}
+                  disabled={loading}
                 />
               </div>
               <Button 
                 type="submit" 
                 className="w-full frc-button text-white font-semibold py-2"
-                disabled={code.length !== 5}
+                disabled={code.length !== 5 || loading}
               >
-                Access Portal
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Accessing...
+                  </>
+                ) : (
+                  'Access Portal'
+                )}
               </Button>
             </form>
             
