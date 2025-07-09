@@ -9,7 +9,7 @@ import { User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Settings, Users, Shield, UserCheck, UserX, Edit3, Save, X, Loader2 } from 'lucide-react';
+import { Settings, Users, Shield, UserCheck, UserX, Edit3, Save, X, Loader2, Trash2 } from 'lucide-react';
 
 interface DatabaseUser {
   id: string;
@@ -29,6 +29,8 @@ const Admin: React.FC = () => {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', role: '' });
   const [newUserCode, setNewUserCode] = useState('');
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserRole, setNewUserRole] = useState('Team Member');
   const [submitting, setSubmitting] = useState(false);
 
   // Load users from database
@@ -187,14 +189,23 @@ const Admin: React.FC = () => {
       return;
     }
 
+    if (!newUserName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter a name for the new user.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
         .insert([{
           code: newUserCode,
-          name: `User ${newUserCode}`,
-          role: 'Team Member',
+          name: newUserName.trim(),
+          role: newUserRole,
           is_admin: false
         }])
         .select()
@@ -211,6 +222,8 @@ const Admin: React.FC = () => {
 
       setUsers(prev => [...prev, newUser]);
       setNewUserCode('');
+      setNewUserName('');
+      setNewUserRole('Team Member');
       toast({
         title: "User Added",
         description: `User ${newUserCode} has been added to the system.`,
@@ -220,6 +233,55 @@ const Admin: React.FC = () => {
       toast({
         title: "Add User Failed",
         description: "Could not add user to database.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async (userCode: string) => {
+    if (userCode === '10101') {
+      toast({
+        title: "Action Not Allowed",
+        description: "Cannot delete the permanent admin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isPermanentAdmin) {
+      toast({
+        title: "Access Denied",
+        description: "Only the permanent admin can delete users.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to permanently delete user ${userCode}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('code', userCode);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.filter(u => u.code !== userCode));
+      toast({
+        title: "User Deleted",
+        description: `User ${userCode} has been permanently removed.`,
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Delete Failed",
+        description: "Could not delete user from database.",
         variant: "destructive",
       });
     } finally {
@@ -280,41 +342,61 @@ const Admin: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Add New User */}
+      {/* Add New User - Only for Admins */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserCheck className="w-5 h-5" />
-            Add New User
+            Create New User Account
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Label htmlFor="newUserCode">5-Digit User Code</Label>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="newUserCode">5-Digit Code</Label>
               <Input
                 id="newUserCode"
                 value={newUserCode}
                 onChange={(e) => setNewUserCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                placeholder="Enter 5-digit code"
+                placeholder="12345"
                 className="font-mono"
                 maxLength={5}
+                disabled={submitting}
+              />
+            </div>
+            <div>
+              <Label htmlFor="newUserName">Full Name</Label>
+              <Input
+                id="newUserName"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                placeholder="Enter full name"
+                disabled={submitting}
+              />
+            </div>
+            <div>
+              <Label htmlFor="newUserRole">Role</Label>
+              <Input
+                id="newUserRole"
+                value={newUserRole}
+                onChange={(e) => setNewUserRole(e.target.value)}
+                placeholder="Team Member"
                 disabled={submitting}
               />
             </div>
             <div className="flex items-end">
               <Button 
                 onClick={handleAddUser}
-                disabled={newUserCode.length !== 5 || submitting}
-                className="frc-accent-button text-white"
+                disabled={newUserCode.length !== 5 || !newUserName.trim() || submitting}
+                className="frc-accent-button text-white w-full"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Adding...
+                    Creating...
                   </>
                 ) : (
-                  'Add User'
+                  'Create User'
                 )}
               </Button>
             </div>
@@ -415,21 +497,36 @@ const Admin: React.FC = () => {
                         <Edit3 className="w-4 h-4" />
                       </Button>
                       {isPermanentAdmin && userItem.code !== '10101' && (
-                        <Button
-                          size="sm"
-                          variant={userItem.isAdmin ? "destructive" : "default"}
-                          onClick={() => toggleAdminStatus(userItem.code)}
-                          className={userItem.isAdmin ? "" : "frc-accent-button text-white"}
-                          disabled={submitting}
-                        >
-                          {submitting ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : userItem.isAdmin ? (
-                            <UserX className="w-4 h-4" />
-                          ) : (
-                            <UserCheck className="w-4 h-4" />
-                          )}
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant={userItem.isAdmin ? "destructive" : "default"}
+                            onClick={() => toggleAdminStatus(userItem.code)}
+                            className={userItem.isAdmin ? "" : "frc-accent-button text-white"}
+                            disabled={submitting}
+                          >
+                            {submitting ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : userItem.isAdmin ? (
+                              <UserX className="w-4 h-4" />
+                            ) : (
+                              <UserCheck className="w-4 h-4" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteUser(userItem.code)}
+                            disabled={submitting}
+                            title="Delete User"
+                          >
+                            {submitting ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </>
                       )}
                     </>
                   )}
@@ -456,6 +553,7 @@ const Admin: React.FC = () => {
               <li>Add and modify progress tasks</li>
               <li>Edit user profiles (name and role)</li>
               <li>View all scouting data</li>
+              <li>Create new user accounts</li>
             </ul>
             
             {isPermanentAdmin && (
@@ -463,7 +561,7 @@ const Admin: React.FC = () => {
                 <p className="mt-4"><strong>Permanent Admin (10101) can additionally:</strong></p>
                 <ul className="list-disc pl-6 space-y-1 text-muted-foreground">
                   <li>Grant and revoke admin privileges</li>
-                  <li>Add new users to the system</li>
+                  <li>Delete user accounts permanently</li>
                   <li>Access all administrative functions</li>
                 </ul>
               </>

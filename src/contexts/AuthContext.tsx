@@ -10,58 +10,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session on mount
-    const getInitialSession = async () => {
+    // Check for existing user in localStorage
+    const getInitialUser = () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          await loadUserProfile(session.user.id);
+        const storedUser = localStorage.getItem('frc_user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
         }
       } catch (error) {
-        console.error('Error getting initial session:', error);
+        console.error('Error loading stored user:', error);
+        localStorage.removeItem('frc_user');
       } finally {
         setLoading(false);
       }
     };
 
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        await loadUserProfile(session.user.id);
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    getInitialUser();
   }, []);
-
-  const loadUserProfile = async (userId: string) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-
-      if (profile) {
-        const userData: User = {
-          code: profile.code,
-          name: profile.name || `User ${profile.code}`,
-          role: profile.role || 'Team Member',
-          isAdmin: profile.is_admin || false
-        };
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-    }
-  };
 
   const login = async (code: string): Promise<boolean> => {
     if (code.length !== 5 || !/^\d{5}$/.test(code)) {
@@ -69,78 +35,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Check if profile exists
+      // Check if profile exists in database
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('code', code)
         .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
+      if (profileError) {
         console.error('Profile lookup error:', profileError);
         return false;
       }
 
-      let userProfile = profile;
-
-      // If profile doesn't exist, create a new one
       if (!profile) {
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert([{
-            code,
-            name: `User ${code}`,
-            role: 'Team Member',
-            is_admin: false
-          }])
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
-          return false;
-        }
-        userProfile = newProfile;
+        // Profile doesn't exist, login fails
+        return false;
       }
 
-      // Create or sign in the user with Supabase Auth using the profile ID
-      const email = `${code}@frcteam.local`;
-      const password = `frc_${code}_temp`;
+      // Create user object from profile
+      const userData: User = {
+        code: profile.code,
+        name: profile.name || `User ${profile.code}`,
+        role: profile.role || 'Team Member',
+        isAdmin: profile.is_admin || false
+      };
 
-      // Try to sign in first
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      // If sign in fails, try to sign up
-      if (signInError) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              profile_id: userProfile.id,
-              code: userProfile.code
-            }
-          }
-        });
-
-        if (signUpError) {
-          console.error('Error signing up:', signUpError);
-          return false;
-        }
-      }
-
-      // Update the profiles table to link with auth user
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser && userProfile) {
-        await supabase
-          .from('profiles')
-          .update({ id: authUser.id })
-          .eq('code', code);
-      }
-
+      setUser(userData);
+      localStorage.setItem('frc_user', JSON.stringify(userData));
+      
+      console.log('Login successful for user:', userData);
       return true;
     } catch (error) {
       console.error('Login error:', error);
@@ -148,13 +71,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('frc_user');
+    console.log('User logged out');
   };
 
   const value: AuthContextType = {
