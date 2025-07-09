@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -115,14 +114,35 @@ const Scouting: React.FC = () => {
     });
   };
 
-  const updateFormField = (section: string, field: string, value: any) => {
-    setScoutingForm(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section as keyof typeof prev],
-        [field]: value
+  const updateFormField = (section: 'auto' | 'teleop' | 'overall', field: string, value: any) => {
+    setScoutingForm(prev => {
+      if (section === 'auto') {
+        return {
+          ...prev,
+          auto: {
+            ...prev.auto,
+            [field]: value
+          }
+        };
+      } else if (section === 'teleop') {
+        return {
+          ...prev,
+          teleop: {
+            ...prev.teleop,
+            [field]: value
+          }
+        };
+      } else if (section === 'overall') {
+        return {
+          ...prev,
+          overall: {
+            ...prev.overall,
+            [field]: value
+          }
+        };
       }
-    }));
+      return prev;
+    });
   };
 
   return (
