@@ -55,7 +55,7 @@ export interface ScoutingData {
 
 export interface AuthContextType {
   user: User | null;
-  login: (code: string) => boolean;
+  login: (code: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
 }
