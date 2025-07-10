@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Announcement, CompetitionSettings } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { withUserContext } from '@/lib/db';
 import { Bell, Plus, Calendar, User, AlertTriangle, Info, CheckCircle, Trash2, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -84,32 +85,31 @@ const Dashboard: React.FC = () => {
     }
 
     try {
-      // Set current user context for RLS
-      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
-      
-      const { data, error } = await supabase
-        .from('announcements')
-        .insert([{
-          title: newAnnouncement.title,
-          content: newAnnouncement.content,
-          author: user?.name || 'Admin',
-          priority: newAnnouncement.priority
-        }])
-        .select()
-        .single();
+      await withUserContext(user?.code, async () => {
+        const { data, error } = await supabase
+          .from('announcements')
+          .insert([{
+            title: newAnnouncement.title,
+            content: newAnnouncement.content,
+            author: user?.name || 'Admin',
+            priority: newAnnouncement.priority
+          }])
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data) {
-        setAnnouncements(prev => [data as Announcement, ...prev]);
-        setNewAnnouncement({ title: '', content: '', priority: 'medium' });
-        setShowAddDialog(false);
-        
-        toast({
-          title: "Announcement Added",
-          description: "New announcement has been created successfully.",
-        });
-      }
+        if (data) {
+          setAnnouncements(prev => [data as Announcement, ...prev]);
+          setNewAnnouncement({ title: '', content: '', priority: 'medium' });
+          setShowAddDialog(false);
+          
+          toast({
+            title: "Announcement Added",
+            description: "New announcement has been created successfully.",
+          });
+        }
+      });
     } catch (error) {
       console.error('Error adding announcement:', error);
       toast({
@@ -126,20 +126,19 @@ const Dashboard: React.FC = () => {
     }
 
     try {
-      // Set current user context for RLS
-      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
-      
-      const { error } = await supabase
-        .from('announcements')
-        .delete()
-        .eq('id', id);
+      await withUserContext(user?.code, async () => {
+        const { error } = await supabase
+          .from('announcements')
+          .delete()
+          .eq('id', id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setAnnouncements(prev => prev.filter(a => a.id !== id));
-      toast({
-        title: "Announcement Deleted",
-        description: "Announcement has been removed successfully.",
+        setAnnouncements(prev => prev.filter(a => a.id !== id));
+        toast({
+          title: "Announcement Deleted",
+          description: "Announcement has been removed successfully.",
+        });
       });
     } catch (error) {
       console.error('Error deleting announcement:', error);
@@ -153,22 +152,36 @@ const Dashboard: React.FC = () => {
 
   const handleUpdateSettings = async () => {
     try {
-      // Set current user context for RLS
-      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
-      
-      if (competitionSettings) {
-        // Update existing settings
-        const updates: any = {};
-        if (newCompetitionDate) updates.competition_date = newCompetitionDate;
-        if (newTeamMemberCount) updates.team_member_count = parseInt(newTeamMemberCount);
-        
-        if (Object.keys(updates).length > 0) {
-          updates.updated_at = new Date().toISOString();
+      await withUserContext(user?.code, async () => {
+        if (competitionSettings) {
+          // Update existing settings
+          const updates: any = {};
+          if (newCompetitionDate) updates.competition_date = newCompetitionDate;
+          if (newTeamMemberCount) updates.team_member_count = parseInt(newTeamMemberCount);
           
+          if (Object.keys(updates).length > 0) {
+            updates.updated_at = new Date().toISOString();
+            
+            const { data, error } = await supabase
+              .from('competition_settings')
+              .update(updates)
+              .eq('id', competitionSettings.id)
+              .select()
+              .single();
+
+            if (error) throw error;
+            if (data) {
+              setCompetitionSettings(data as CompetitionSettings);
+            }
+          }
+        } else {
+          // Insert new settings
           const { data, error } = await supabase
             .from('competition_settings')
-            .update(updates)
-            .eq('id', competitionSettings.id)
+            .insert([{
+              competition_date: newCompetitionDate || '2024-03-15',
+              team_member_count: parseInt(newTeamMemberCount) || 0
+            }])
             .select()
             .single();
 
@@ -177,30 +190,15 @@ const Dashboard: React.FC = () => {
             setCompetitionSettings(data as CompetitionSettings);
           }
         }
-      } else {
-        // Insert new settings
-        const { data, error } = await supabase
-          .from('competition_settings')
-          .insert([{
-            competition_date: newCompetitionDate || '2024-03-15',
-            team_member_count: parseInt(newTeamMemberCount) || 0
-          }])
-          .select()
-          .single();
 
-        if (error) throw error;
-        if (data) {
-          setCompetitionSettings(data as CompetitionSettings);
-        }
-      }
-
-      setShowSettingsDialog(false);
-      setNewCompetitionDate('');
-      setNewTeamMemberCount('');
-      
-      toast({
-        title: "Settings Updated",
-        description: "Competition settings have been updated successfully.",
+        setShowSettingsDialog(false);
+        setNewCompetitionDate('');
+        setNewTeamMemberCount('');
+        
+        toast({
+          title: "Settings Updated",
+          description: "Competition settings have been updated successfully.",
+        });
       });
     } catch (error) {
       console.error('Error updating settings:', error);

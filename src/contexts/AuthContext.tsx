@@ -67,18 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
       localStorage.setItem('frc_user', JSON.stringify(userData));
       
-      // Sign in to Supabase auth with the user code as identifier
-      const { error: authError } = await supabase.auth.signInAnonymously({
-        options: {
-          data: { user_code: code }
-        }
-      });
-
-      if (authError) {
-        console.error('Auth error:', authError);
-        // Don't fail login if anonymous auth fails, we can still work with localStorage
-      }
-      
       console.log('Login successful for user:', userData);
       return true;
     } catch (error) {

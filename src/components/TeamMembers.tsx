@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { withUserContext } from '@/lib/db';
 import { Users, Shield, User as UserIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,24 +22,23 @@ const TeamMembers: React.FC = () => {
 
   const loadUsers = async () => {
     try {
-      // Set current user context for RLS
-      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('code, name, role, is_admin')
-        .order('created_at', { ascending: true });
+      await withUserContext(user?.code, async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('code, name, role, is_admin')
+          .order('created_at', { ascending: true });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      const mappedUsers: User[] = data.map((dbUser: any) => ({
-        code: dbUser.code,
-        name: dbUser.name || `User ${dbUser.code}`,
-        role: dbUser.role || 'Team Member',
-        isAdmin: dbUser.is_admin || false
-      }));
+        const mappedUsers: User[] = data.map((dbUser: any) => ({
+          code: dbUser.code,
+          name: dbUser.name || `User ${dbUser.code}`,
+          role: dbUser.role || 'Team Member',
+          isAdmin: dbUser.is_admin || false
+        }));
 
-      setUsers(mappedUsers);
+        setUsers(mappedUsers);
+      });
     } catch (error) {
       console.error('Error loading users:', error);
       toast({

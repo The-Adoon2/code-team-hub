@@ -10,6 +10,7 @@ import { ScoutingData } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { withUserContext } from '@/lib/db';
 import { Search, Plus, Eye, BarChart3, Target, Zap, Shield, Trash2 } from 'lucide-react';
 
 const Scouting: React.FC = () => {
@@ -80,56 +81,55 @@ const Scouting: React.FC = () => {
     }
 
     try {
-      // Set current user context for RLS
-      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
-      
-      const { data, error } = await supabase
-        .from('scouting_data')
-        .insert([{
-          team_number: scoutingForm.teamNumber,
-          match_number: scoutingForm.matchNumber,
-          scouted_by: user?.name || 'Unknown',
-          auto_points_scored: scoutingForm.auto.pointsScored,
-          teleop_points_scored: scoutingForm.teleop.pointsScored,
-          climbed: scoutingForm.teleop.climbed,
-          parked: scoutingForm.teleop.parked,
-          auto_notes: scoutingForm.auto.notes,
-          teleop_notes: scoutingForm.teleop.notes,
-          defense_rating: scoutingForm.overall.defense,
-          driver_skill_rating: scoutingForm.overall.driverSkill,
-          robot_reliability_rating: scoutingForm.overall.robotReliability,
-          general_notes: scoutingForm.overall.generalNotes
-        }])
-        .select()
-        .single();
+      await withUserContext(user?.code, async () => {
+        const { data, error } = await supabase
+          .from('scouting_data')
+          .insert([{
+            team_number: scoutingForm.teamNumber,
+            match_number: scoutingForm.matchNumber,
+            scouted_by: user?.name || 'Unknown',
+            auto_points_scored: scoutingForm.auto.pointsScored,
+            teleop_points_scored: scoutingForm.teleop.pointsScored,
+            climbed: scoutingForm.teleop.climbed,
+            parked: scoutingForm.teleop.parked,
+            auto_notes: scoutingForm.auto.notes,
+            teleop_notes: scoutingForm.teleop.notes,
+            defense_rating: scoutingForm.overall.defense,
+            driver_skill_rating: scoutingForm.overall.driverSkill,
+            robot_reliability_rating: scoutingForm.overall.robotReliability,
+            general_notes: scoutingForm.overall.generalNotes
+          }])
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Scouting Data Saved",
-        description: `Data for Team ${scoutingForm.teamNumber} in Match ${scoutingForm.matchNumber} has been recorded.`,
-      });
+        toast({
+          title: "Scouting Data Saved",
+          description: `Data for Team ${scoutingForm.teamNumber} in Match ${scoutingForm.matchNumber} has been recorded.`,
+        });
 
-      // Reset form
-      setScoutingForm({
-        teamNumber: '',
-        matchNumber: '',
-        auto: {
-          pointsScored: 0,
-          notes: ''
-        },
-        teleop: {
-          pointsScored: 0,
-          climbed: false,
-          parked: false,
-          notes: ''
-        },
-        overall: {
-          defense: 3,
-          driverSkill: 3,
-          robotReliability: 3,
-          generalNotes: ''
-        }
+        // Reset form
+        setScoutingForm({
+          teamNumber: '',
+          matchNumber: '',
+          auto: {
+            pointsScored: 0,
+            notes: ''
+          },
+          teleop: {
+            pointsScored: 0,
+            climbed: false,
+            parked: false,
+            notes: ''
+          },
+          overall: {
+            defense: 3,
+            driverSkill: 3,
+            robotReliability: 3,
+            generalNotes: ''
+          }
+        });
       });
     } catch (error) {
       console.error('Error saving scouting data:', error);
@@ -147,20 +147,19 @@ const Scouting: React.FC = () => {
     }
 
     try {
-      // Set current user context for RLS
-      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
-      
-      const { error } = await supabase
-        .from('scouting_data')
-        .delete()
-        .eq('id', id);
+      await withUserContext(user?.code, async () => {
+        const { error } = await supabase
+          .from('scouting_data')
+          .delete()
+          .eq('id', id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setScoutingData(prev => prev.filter(s => s.id !== id));
-      toast({
-        title: "Scouting Data Deleted",
-        description: "Scouting data has been removed successfully.",
+        setScoutingData(prev => prev.filter(s => s.id !== id));
+        toast({
+          title: "Scouting Data Deleted",
+          description: "Scouting data has been removed successfully.",
+        });
       });
     } catch (error) {
       console.error('Error deleting scouting data:', error);

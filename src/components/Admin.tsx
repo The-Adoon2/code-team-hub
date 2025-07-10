@@ -9,6 +9,7 @@ import { User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { withUserContext } from '@/lib/db';
 import { Settings, Users, Shield, UserCheck, UserX, Edit3, Save, X, Loader2, Trash2 } from 'lucide-react';
 
 interface DatabaseUser {

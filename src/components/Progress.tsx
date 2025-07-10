@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ProgressTask } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { withUserContext } from '@/lib/db';
 import { CheckCircle, Clock, Plus, User, Calendar, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -64,27 +65,29 @@ const Progress: React.FC = () => {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert([{
-          title: newTask.title,
-          description: newTask.description,
-          assigned_to: newTask.assigned_to || null,
-          due_date: newTask.due_date || null,
-          category: newTask.category
-        }])
-        .select()
-        .single();
+      await withUserContext(user?.code, async () => {
+        const { data, error } = await supabase
+          .from('tasks')
+          .insert([{
+            title: newTask.title,
+            description: newTask.description,
+            assigned_to: newTask.assigned_to || null,
+            due_date: newTask.due_date || null,
+            category: newTask.category
+          }])
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setTasks(prev => [...prev, data as ProgressTask]);
-      setNewTask({ title: '', description: '', assigned_to: '', due_date: '', category: '' });
-      setShowAddDialog(false);
-      
-      toast({
-        title: "Task Added",
-        description: "New task has been created successfully.",
+        setTasks(prev => [...prev, data as ProgressTask]);
+        setNewTask({ title: '', description: '', assigned_to: '', due_date: '', category: '' });
+        setShowAddDialog(false);
+        
+        toast({
+          title: "Task Added",
+          description: "New task has been created successfully.",
+        });
       });
     } catch (error) {
       console.error('Error adding task:', error);
@@ -127,20 +130,19 @@ const Progress: React.FC = () => {
     }
 
     try {
-      // Set current user context for RLS
-      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
-      
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId);
+      await withUserContext(user?.code, async () => {
+        const { error } = await supabase
+          .from('tasks')
+          .delete()
+          .eq('id', taskId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setTasks(prev => prev.filter(t => t.id !== taskId));
-      toast({
-        title: "Task Deleted",
-        description: "Task has been removed successfully.",
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+        toast({
+          title: "Task Deleted",
+          description: "Task has been removed successfully.",
+        });
       });
     } catch (error) {
       console.error('Error deleting task:', error);
