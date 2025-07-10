@@ -37,29 +37,29 @@ const Dashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      // Load announcements
+      // Load announcements with type assertion
       const { data: announcementsData, error: announcementsError } = await supabase
-        .from('announcements')
+        .from('announcements' as any)
         .select('*')
         .order('created_at', { ascending: false });
 
       if (announcementsError) {
         console.error('Error loading announcements:', announcementsError);
       } else if (announcementsData) {
-        setAnnouncements(announcementsData);
+        setAnnouncements(announcementsData as Announcement[]);
       }
 
-      // Load competition settings
+      // Load competition settings with type assertion
       const { data: settingsData, error: settingsError } = await supabase
-        .from('competition_settings')
+        .from('competition_settings' as any)
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (settingsError) {
         console.error('Error loading competition settings:', settingsError);
       } else if (settingsData) {
-        setCompetitionSettings(settingsData);
+        setCompetitionSettings(settingsData as CompetitionSettings);
       }
 
     } catch (error) {
@@ -86,7 +86,7 @@ const Dashboard: React.FC = () => {
 
     try {
       const { data, error } = await supabase
-        .from('announcements')
+        .from('announcements' as any)
         .insert([{
           title: newAnnouncement.title,
           content: newAnnouncement.content,
@@ -99,7 +99,7 @@ const Dashboard: React.FC = () => {
       if (error) throw error;
 
       if (data) {
-        setAnnouncements(prev => [data, ...prev]);
+        setAnnouncements(prev => [data as Announcement, ...prev]);
         setNewAnnouncement({ title: '', content: '', priority: 'medium' });
         setShowAddDialog(false);
         
@@ -125,7 +125,7 @@ const Dashboard: React.FC = () => {
 
     try {
       const { error } = await supabase
-        .from('announcements')
+        .from('announcements' as any)
         .delete()
         .eq('id', id);
 
@@ -158,7 +158,7 @@ const Dashboard: React.FC = () => {
           updates.updated_at = new Date().toISOString();
           
           const { data, error } = await supabase
-            .from('competition_settings')
+            .from('competition_settings' as any)
             .update(updates)
             .eq('id', competitionSettings.id)
             .select()
@@ -166,13 +166,13 @@ const Dashboard: React.FC = () => {
 
           if (error) throw error;
           if (data) {
-            setCompetitionSettings(data);
+            setCompetitionSettings(data as CompetitionSettings);
           }
         }
       } else {
         // Insert new settings
         const { data, error } = await supabase
-          .from('competition_settings')
+          .from('competition_settings' as any)
           .insert([{
             competition_date: newCompetitionDate || '2024-03-15',
             team_member_count: parseInt(newTeamMemberCount) || 0
@@ -182,7 +182,7 @@ const Dashboard: React.FC = () => {
 
         if (error) throw error;
         if (data) {
-          setCompetitionSettings(data);
+          setCompetitionSettings(data as CompetitionSettings);
         }
       }
 

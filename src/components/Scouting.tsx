@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,12 +48,12 @@ const Scouting: React.FC = () => {
   const loadScoutingData = async () => {
     try {
       const { data, error } = await supabase
-        .from('scouting_data')
+        .from('scouting_data' as any)
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setScoutingData(data || []);
+      setScoutingData((data || []) as ScoutingData[]);
     } catch (error) {
       console.error('Error loading scouting data:', error);
       toast({
@@ -81,7 +80,7 @@ const Scouting: React.FC = () => {
 
     try {
       const { data, error } = await supabase
-        .from('scouting_data')
+        .from('scouting_data' as any)
         .insert([{
           team_number: scoutingForm.teamNumber,
           match_number: scoutingForm.matchNumber,
@@ -145,7 +144,7 @@ const Scouting: React.FC = () => {
 
     try {
       const { error } = await supabase
-        .from('scouting_data')
+        .from('scouting_data' as any)
         .delete()
         .eq('id', id);
 
