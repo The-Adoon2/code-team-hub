@@ -37,11 +37,11 @@ const Dashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      // Load announcements using raw SQL query
+      // Load announcements
       const { data: announcementsData, error: announcementsError } = await supabase
-        .rpc('sql', { 
-          query: 'SELECT * FROM public.announcements ORDER BY created_at DESC' 
-        }) as any;
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (announcementsError) {
         console.error('Error loading announcements:', announcementsError);
@@ -49,16 +49,17 @@ const Dashboard: React.FC = () => {
         setAnnouncements(announcementsData);
       }
 
-      // Load competition settings using raw SQL query
+      // Load competition settings
       const { data: settingsData, error: settingsError } = await supabase
-        .rpc('sql', { 
-          query: 'SELECT * FROM public.competition_settings LIMIT 1' 
-        }) as any;
+        .from('competition_settings')
+        .select('*')
+        .limit(1)
+        .single();
 
       if (settingsError) {
         console.error('Error loading competition settings:', settingsError);
-      } else if (settingsData && settingsData.length > 0) {
-        setCompetitionSettings(settingsData[0]);
+      } else if (settingsData) {
+        setCompetitionSettings(settingsData);
       }
 
     } catch (error) {
@@ -85,18 +86,20 @@ const Dashboard: React.FC = () => {
 
     try {
       const { data, error } = await supabase
-        .rpc('sql', {
-          query: `
-            INSERT INTO public.announcements (title, content, author, priority)
-            VALUES ('${newAnnouncement.title}', '${newAnnouncement.content}', '${user?.name || 'Admin'}', '${newAnnouncement.priority}')
-            RETURNING *
-          `
-        }) as any;
+        .from('announcements')
+        .insert([{
+          title: newAnnouncement.title,
+          content: newAnnouncement.content,
+          author: user?.name || 'Admin',
+          priority: newAnnouncement.priority
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        setAnnouncements(prev => [data[0], ...prev]);
+      if (data) {
+        setAnnouncements(prev => [data, ...prev]);
         setNewAnnouncement({ title: '', content: '', priority: 'medium' });
         setShowAddDialog(false);
         
@@ -122,9 +125,9 @@ const Dashboard: React.FC = () => {
 
     try {
       const { error } = await supabase
-        .rpc('sql', {
-          query: `DELETE FROM public.announcements WHERE id = '${id}'`
-        }) as any;
+        .from('announcements')
+        .delete()
+        .eq('id', id);
 
       if (error) throw error;
 
@@ -145,30 +148,44 @@ const Dashboard: React.FC = () => {
 
   const handleUpdateSettings = async () => {
     try {
-      let query = '';
       if (competitionSettings) {
         // Update existing settings
-        const updates = [];
-        if (newCompetitionDate) updates.push(`competition_date = '${newCompetitionDate}'`);
-        if (newTeamMemberCount) updates.push(`team_member_count = ${parseInt(newTeamMemberCount)}`);
-        if (updates.length > 0) {
-          query = `UPDATE public.competition_settings SET ${updates.join(', ')}, updated_at = NOW() WHERE id = '${competitionSettings.id}' RETURNING *`;
+        const updates: any = {};
+        if (newCompetitionDate) updates.competition_date = newCompetitionDate;
+        if (newTeamMemberCount) updates.team_member_count = parseInt(newTeamMemberCount);
+        
+        if (Object.keys(updates).length > 0) {
+          updates.updated_at = new Date().toISOString();
+          
+          const { data, error } = await supabase
+            .from('competition_settings')
+            .update(updates)
+            .eq('id', competitionSettings.id)
+            .select()
+            .single();
+
+          if (error) throw error;
+          if (data) {
+            setCompetitionSettings(data);
+          }
         }
       } else {
         // Insert new settings
-        query = `INSERT INTO public.competition_settings (competition_date, team_member_count) VALUES ('${newCompetitionDate || '2024-03-15'}', ${parseInt(newTeamMemberCount) || 0}) RETURNING *`;
-      }
-
-      if (query) {
-        const { data, error } = await supabase.rpc('sql', { query }) as any;
+        const { data, error } = await supabase
+          .from('competition_settings')
+          .insert([{
+            competition_date: newCompetitionDate || '2024-03-15',
+            team_member_count: parseInt(newTeamMemberCount) || 0
+          }])
+          .select()
+          .single();
 
         if (error) throw error;
-        if (data && data.length > 0) {
-          setCompetitionSettings(data[0]);
+        if (data) {
+          setCompetitionSettings(data);
         }
       }
 
-      await loadData();
       setShowSettingsDialog(false);
       setNewCompetitionDate('');
       setNewTeamMemberCount('');
