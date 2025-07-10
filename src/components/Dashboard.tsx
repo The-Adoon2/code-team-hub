@@ -84,6 +84,9 @@ const Dashboard: React.FC = () => {
     }
 
     try {
+      // Set current user context for RLS
+      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
+      
       const { data, error } = await supabase
         .from('announcements')
         .insert([{
@@ -123,6 +126,9 @@ const Dashboard: React.FC = () => {
     }
 
     try {
+      // Set current user context for RLS
+      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
+      
       const { error } = await supabase
         .from('announcements')
         .delete()
@@ -147,6 +153,9 @@ const Dashboard: React.FC = () => {
 
   const handleUpdateSettings = async () => {
     try {
+      // Set current user context for RLS
+      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
+      
       if (competitionSettings) {
         // Update existing settings
         const updates: any = {};

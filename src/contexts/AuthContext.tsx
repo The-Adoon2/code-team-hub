@@ -11,14 +11,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Check for existing user in localStorage
-    const getInitialUser = () => {
+    const getInitialUser = async () => {
       try {
         const storedUser = localStorage.getItem('frc_user');
         if (storedUser) {
           const userData = JSON.parse(storedUser);
           setUser(userData);
           // Set the current user context for RLS
-          supabase.rpc('set_current_user_code', { user_code: userData.code });
+          await supabase.rpc('set_current_user_code', { user_code: userData.code });
         }
       } catch (error) {
         console.error('Error loading stored user:', error);

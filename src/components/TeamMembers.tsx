@@ -21,6 +21,9 @@ const TeamMembers: React.FC = () => {
 
   const loadUsers = async () => {
     try {
+      // Set current user context for RLS
+      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('code, name, role, is_admin')

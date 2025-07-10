@@ -80,6 +80,9 @@ const Scouting: React.FC = () => {
     }
 
     try {
+      // Set current user context for RLS
+      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
+      
       const { data, error } = await supabase
         .from('scouting_data')
         .insert([{
@@ -144,6 +147,9 @@ const Scouting: React.FC = () => {
     }
 
     try {
+      // Set current user context for RLS
+      await supabase.rpc('set_current_user_code', { user_code: user?.code || '' });
+      
       const { error } = await supabase
         .from('scouting_data')
         .delete()
