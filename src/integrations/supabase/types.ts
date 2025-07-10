@@ -49,7 +49,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      set_current_user_code: {
+        Args: { user_code: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

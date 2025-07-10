@@ -17,6 +17,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (storedUser) {
           const userData = JSON.parse(storedUser);
           setUser(userData);
+          // Set the current user context for RLS
+          supabase.rpc('set_current_user_code', { user_code: userData.code });
         }
       } catch (error) {
         console.error('Error loading stored user:', error);
@@ -35,6 +37,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      // First, set the current user context for RLS
+      await supabase.rpc('set_current_user_code', { user_code: code });
+      
       // Check if profile exists in database
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -48,7 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!profile) {
-        // Profile doesn't exist, login fails
         return false;
       }
 
@@ -63,6 +67,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
       localStorage.setItem('frc_user', JSON.stringify(userData));
       
+      // Sign in to Supabase auth with the user code as identifier
+      const { error: authError } = await supabase.auth.signInAnonymously({
+        options: {
+          data: { user_code: code }
+        }
+      });
+
+      if (authError) {
+        console.error('Auth error:', authError);
+        // Don't fail login if anonymous auth fails, we can still work with localStorage
+      }
+      
       console.log('Login successful for user:', userData);
       return true;
     } catch (error) {
@@ -74,6 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     localStorage.removeItem('frc_user');
+    supabase.auth.signOut();
     console.log('User logged out');
   };
 

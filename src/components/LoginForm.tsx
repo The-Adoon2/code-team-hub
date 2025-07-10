@@ -28,7 +28,7 @@ const LoginForm: React.FC = () => {
       } else {
         toast({
           title: "Login Failed",
-          description: "Please enter a valid 5-digit code.",
+          description: "Invalid access code. Please check your 5-digit code and try again.",
           variant: "destructive",
         });
       }
@@ -53,7 +53,7 @@ const LoginForm: React.FC = () => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-frc-blue to-frc-orange bg-clip-text text-transparent">
             FRC Team Portal
           </h1>
-          <p className="text-muted-foreground mt-2">Enter your 5-digit team code</p>
+          <p className="text-muted-foreground mt-2">Enter your 5-digit access code</p>
         </div>
 
         <Card className="border-2 border-border/50 backdrop-blur-sm bg-card/90">
@@ -91,10 +91,6 @@ const LoginForm: React.FC = () => {
                 )}
               </Button>
             </form>
-            
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              <p>Demo codes: 10101 (Admin), 12345, 54321</p>
-            </div>
           </CardContent>
         </Card>
       </div>

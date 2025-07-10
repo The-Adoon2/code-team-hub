@@ -38,14 +38,29 @@ const Admin: React.FC = () => {
     loadUsers();
   }, []);
 
+  // Set current user context when component mounts or user changes
+  useEffect(() => {
+    if (user?.code) {
+      supabase.rpc('set_current_user_code', { user_code: user.code });
+    }
+  }, [user]);
+
   const loadUsers = async () => {
     try {
+      // Ensure we have the current user context set
+      if (user?.code) {
+        await supabase.rpc('set_current_user_code', { user_code: user.code });
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading users:', error);
+        throw error;
+      }
 
       const mappedUsers: User[] = data.map((dbUser: DatabaseUser) => ({
         code: dbUser.code,
@@ -78,6 +93,9 @@ const Admin: React.FC = () => {
   const handleSaveEdit = async (userCode: string) => {
     setSubmitting(true);
     try {
+      // Ensure we have the current user context set
+      await supabase.rpc('set_current_user_code', { user_code: user!.code });
+
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -87,7 +105,10 @@ const Admin: React.FC = () => {
         })
         .eq('code', userCode);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating user:', error);
+        throw error;
+      }
 
       setUsers(prev => prev.map(u => 
         u.code === userCode 
@@ -140,6 +161,9 @@ const Admin: React.FC = () => {
 
     setSubmitting(true);
     try {
+      // Ensure we have the current user context set
+      await supabase.rpc('set_current_user_code', { user_code: user!.code });
+
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -148,7 +172,10 @@ const Admin: React.FC = () => {
         })
         .eq('code', userCode);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating admin status:', error);
+        throw error;
+      }
 
       setUsers(prev => prev.map(u => 
         u.code === userCode ? { ...u, isAdmin: !u.isAdmin } : u
@@ -200,6 +227,9 @@ const Admin: React.FC = () => {
 
     setSubmitting(true);
     try {
+      // Ensure we have the current user context set
+      await supabase.rpc('set_current_user_code', { user_code: user!.code });
+
       const { data, error } = await supabase
         .from('profiles')
         .insert([{
@@ -211,7 +241,10 @@ const Admin: React.FC = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error adding user:', error);
+        throw error;
+      }
 
       const newUser: User = {
         code: data.code,
@@ -265,12 +298,18 @@ const Admin: React.FC = () => {
 
     setSubmitting(true);
     try {
+      // Ensure we have the current user context set
+      await supabase.rpc('set_current_user_code', { user_code: user!.code });
+
       const { error } = await supabase
         .from('profiles')
         .delete()
         .eq('code', userCode);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting user:', error);
+        throw error;
+      }
 
       setUsers(prev => prev.filter(u => u.code !== userCode));
       toast({
