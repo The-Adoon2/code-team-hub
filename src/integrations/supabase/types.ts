@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          author: string
+          content: string
+          created_at: string | null
+          id: string
+          priority: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          author: string
+          content: string
+          created_at?: string | null
+          id?: string
+          priority?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          author?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          priority?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      competition_settings: {
+        Row: {
+          competition_date: string | null
+          id: string
+          team_member_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          competition_date?: string | null
+          id?: string
+          team_member_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          competition_date?: string | null
+          id?: string
+          team_member_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           code: string
@@ -40,6 +91,96 @@ export type Database = {
           is_admin?: boolean | null
           name?: string | null
           role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      scouting_data: {
+        Row: {
+          auto_notes: string | null
+          auto_points_scored: number | null
+          climbed: boolean | null
+          created_at: string | null
+          defense_rating: number | null
+          driver_skill_rating: number | null
+          general_notes: string | null
+          id: string
+          match_number: string
+          parked: boolean | null
+          robot_reliability_rating: number | null
+          scouted_by: string
+          team_number: string
+          teleop_notes: string | null
+          teleop_points_scored: number | null
+        }
+        Insert: {
+          auto_notes?: string | null
+          auto_points_scored?: number | null
+          climbed?: boolean | null
+          created_at?: string | null
+          defense_rating?: number | null
+          driver_skill_rating?: number | null
+          general_notes?: string | null
+          id?: string
+          match_number: string
+          parked?: boolean | null
+          robot_reliability_rating?: number | null
+          scouted_by: string
+          team_number: string
+          teleop_notes?: string | null
+          teleop_points_scored?: number | null
+        }
+        Update: {
+          auto_notes?: string | null
+          auto_points_scored?: number | null
+          climbed?: boolean | null
+          created_at?: string | null
+          defense_rating?: number | null
+          driver_skill_rating?: number | null
+          general_notes?: string | null
+          id?: string
+          match_number?: string
+          parked?: boolean | null
+          robot_reliability_rating?: number | null
+          scouted_by?: string
+          team_number?: string
+          teleop_notes?: string | null
+          teleop_points_scored?: number | null
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_to: string | null
+          category: string
+          completed: boolean | null
+          created_at: string | null
+          description: string
+          due_date: string | null
+          id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          category: string
+          completed?: boolean | null
+          created_at?: string | null
+          description: string
+          due_date?: string | null
+          id?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string
+          completed?: boolean | null
+          created_at?: string | null
+          description?: string
+          due_date?: string | null
+          id?: string
+          title?: string
           updated_at?: string | null
         }
         Relationships: []

@@ -35,12 +35,12 @@ const Progress: React.FC = () => {
   const loadTasks = async () => {
     try {
       const { data, error } = await supabase
-        .from('tasks' as any)
+        .from('tasks')
         .select('*')
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setTasks((data || []) as unknown as ProgressTask[]);
+      setTasks((data || []) as ProgressTask[]);
     } catch (error) {
       console.error('Error loading tasks:', error);
       toast({
@@ -65,7 +65,7 @@ const Progress: React.FC = () => {
 
     try {
       const { data, error } = await supabase
-        .from('tasks' as any)
+        .from('tasks')
         .insert([{
           title: newTask.title,
           description: newTask.description,
@@ -78,7 +78,7 @@ const Progress: React.FC = () => {
 
       if (error) throw error;
 
-      setTasks(prev => [...prev, data as unknown as ProgressTask]);
+      setTasks(prev => [...prev, data as ProgressTask]);
       setNewTask({ title: '', description: '', assigned_to: '', due_date: '', category: '' });
       setShowAddDialog(false);
       
@@ -102,7 +102,7 @@ const Progress: React.FC = () => {
 
     try {
       const { error } = await supabase
-        .from('tasks' as any)
+        .from('tasks')
         .update({ completed: !task.completed })
         .eq('id', taskId);
 
@@ -128,7 +128,7 @@ const Progress: React.FC = () => {
 
     try {
       const { error } = await supabase
-        .from('tasks' as any)
+        .from('tasks')
         .delete()
         .eq('id', taskId);
 

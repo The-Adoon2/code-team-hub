@@ -49,12 +49,12 @@ const Scouting: React.FC = () => {
   const loadScoutingData = async () => {
     try {
       const { data, error } = await supabase
-        .from('scouting_data' as any)
+        .from('scouting_data')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setScoutingData((data || []) as unknown as ScoutingData[]);
+      setScoutingData((data || []) as ScoutingData[]);
     } catch (error) {
       console.error('Error loading scouting data:', error);
       toast({
@@ -81,7 +81,7 @@ const Scouting: React.FC = () => {
 
     try {
       const { data, error } = await supabase
-        .from('scouting_data' as any)
+        .from('scouting_data')
         .insert([{
           team_number: scoutingForm.teamNumber,
           match_number: scoutingForm.matchNumber,
@@ -145,7 +145,7 @@ const Scouting: React.FC = () => {
 
     try {
       const { error } = await supabase
-        .from('scouting_data' as any)
+        .from('scouting_data')
         .delete()
         .eq('id', id);
 
