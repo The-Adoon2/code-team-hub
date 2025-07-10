@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,7 +45,7 @@ const Dashboard: React.FC = () => {
       if (announcementsError) {
         console.error('Error loading announcements:', announcementsError);
       } else if (announcementsData) {
-        setAnnouncements(announcementsData as Announcement[]);
+        setAnnouncements(announcementsData as unknown as Announcement[]);
       }
 
       // Load competition settings with type assertion
@@ -59,7 +58,7 @@ const Dashboard: React.FC = () => {
       if (settingsError) {
         console.error('Error loading competition settings:', settingsError);
       } else if (settingsData) {
-        setCompetitionSettings(settingsData as CompetitionSettings);
+        setCompetitionSettings(settingsData as unknown as CompetitionSettings);
       }
 
     } catch (error) {
@@ -99,7 +98,7 @@ const Dashboard: React.FC = () => {
       if (error) throw error;
 
       if (data) {
-        setAnnouncements(prev => [data as Announcement, ...prev]);
+        setAnnouncements(prev => [data as unknown as Announcement, ...prev]);
         setNewAnnouncement({ title: '', content: '', priority: 'medium' });
         setShowAddDialog(false);
         
@@ -166,7 +165,7 @@ const Dashboard: React.FC = () => {
 
           if (error) throw error;
           if (data) {
-            setCompetitionSettings(data as CompetitionSettings);
+            setCompetitionSettings(data as unknown as CompetitionSettings);
           }
         }
       } else {
@@ -182,7 +181,7 @@ const Dashboard: React.FC = () => {
 
         if (error) throw error;
         if (data) {
-          setCompetitionSettings(data as CompetitionSettings);
+          setCompetitionSettings(data as unknown as CompetitionSettings);
         }
       }
 

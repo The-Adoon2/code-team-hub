@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,7 +54,7 @@ const Scouting: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setScoutingData((data || []) as ScoutingData[]);
+      setScoutingData((data || []) as unknown as ScoutingData[]);
     } catch (error) {
       console.error('Error loading scouting data:', error);
       toast({

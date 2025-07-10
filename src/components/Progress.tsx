@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,7 +40,7 @@ const Progress: React.FC = () => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setTasks((data || []) as ProgressTask[]);
+      setTasks((data || []) as unknown as ProgressTask[]);
     } catch (error) {
       console.error('Error loading tasks:', error);
       toast({
@@ -79,7 +78,7 @@ const Progress: React.FC = () => {
 
       if (error) throw error;
 
-      setTasks(prev => [...prev, data as ProgressTask]);
+      setTasks(prev => [...prev, data as unknown as ProgressTask]);
       setNewTask({ title: '', description: '', assigned_to: '', due_date: '', category: '' });
       setShowAddDialog(false);
       
