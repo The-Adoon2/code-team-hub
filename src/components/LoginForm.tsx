@@ -23,7 +23,7 @@ const LoginForm: React.FC = () => {
       if (success) {
         toast({
           title: "Login Successful",
-          description: "Welcome to the FRC Team Portal!",
+          description: "Welcome to the Hastings Robotics Team Portal!",
         });
       } else {
         toast({
@@ -51,7 +51,7 @@ const LoginForm: React.FC = () => {
             <Zap className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-frc-blue to-frc-orange bg-clip-text text-transparent">
-            FRC Team Portal
+            Hastings Robotics Team Portal
           </h1>
           <p className="text-muted-foreground mt-2">Enter your 5-digit access code</p>
         </div>

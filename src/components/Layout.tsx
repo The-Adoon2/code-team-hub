@@ -42,7 +42,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChange }) =>
                 <Zap className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-frc-blue to-frc-orange bg-clip-text text-transparent">
-                FRC Team Portal
+                Hastings Robotics Team Portal
               </h1>
             </div>
 
