@@ -86,7 +86,7 @@ const TeamMembers: React.FC = () => {
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  {user?.isAdmin && (
+                  {user?.code === '10101' && (
                     <Badge variant="outline" className="text-xs">
                       {member.code}
                     </Badge>

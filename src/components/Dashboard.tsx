@@ -20,6 +20,7 @@ const Dashboard: React.FC = () => {
   
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [competitionSettings, setCompetitionSettings] = useState<CompetitionSettings | null>(null);
+  const [actualMemberCount, setActualMemberCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
@@ -60,6 +61,15 @@ const Dashboard: React.FC = () => {
         console.error('Error loading competition settings:', settingsError);
       } else if (settingsData) {
         setCompetitionSettings(settingsData as CompetitionSettings);
+      }
+
+      // Load actual member count from profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id');
+
+      if (!profilesError && profilesData) {
+        setActualMemberCount(profilesData.length);
       }
 
     } catch (error) {
@@ -322,10 +332,10 @@ const Dashboard: React.FC = () => {
         <Card className="border-frc-orange/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Team Members</p>
-                <p className="text-2xl font-bold text-frc-orange">{competitionSettings?.team_member_count || 0}</p>
-              </div>
+               <div>
+                 <p className="text-sm text-muted-foreground">Team Members</p>
+                 <p className="text-2xl font-bold text-frc-orange">{actualMemberCount}</p>
+               </div>
               <User className="w-8 h-8 text-frc-orange" />
             </div>
           </CardContent>

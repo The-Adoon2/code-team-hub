@@ -86,6 +86,20 @@ const Admin: React.FC = () => {
   const handleEditUser = (userCode: string) => {
     const userToEdit = users.find(u => u.code === userCode);
     if (userToEdit) {
+      // Only permanent admin can edit names
+      // Only allow role editing if target user is not an admin or permanent admin
+      const canEditName = isPermanentAdmin;
+      const canEditRole = !userToEdit.isAdmin && userCode !== '10101';
+      
+      if (!canEditName && !canEditRole) {
+        toast({
+          title: "Edit Restricted",
+          description: "You cannot edit this user's information.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setEditingUser(userCode);
       setEditForm({ name: userToEdit.name, role: userToEdit.role });
     }
@@ -94,16 +108,28 @@ const Admin: React.FC = () => {
   const handleSaveEdit = async (userCode: string) => {
     setSubmitting(true);
     try {
+      const userToEdit = users.find(u => u.code === userCode);
+      if (!userToEdit) return;
+      
       // Ensure we have the current user context set
       await supabase.rpc('set_current_user_code', { user_code: user!.code });
 
+      // Prepare update object based on permissions
+      const updates: any = { updated_at: new Date().toISOString() };
+      
+      // Only permanent admin can change names
+      if (isPermanentAdmin) {
+        updates.name = editForm.name;
+      }
+      
+      // Only allow role changes if target user is not an admin or permanent admin
+      if (!userToEdit.isAdmin && userCode !== '10101') {
+        updates.role = editForm.role;
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          name: editForm.name,
-          role: editForm.role,
-          updated_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('code', userCode);
 
       if (error) {
@@ -461,31 +487,37 @@ const Admin: React.FC = () => {
               >
                 <div className="flex-1">
                   {editingUser === userItem.code ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor={`name-${userItem.code}`}>Name</Label>
-                        <Input
-                          id={`name-${userItem.code}`}
-                          value={editForm.name}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                          disabled={submitting}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor={`role-${userItem.code}`}>Role</Label>
-                        <Input
-                          id={`role-${userItem.code}`}
-                          value={editForm.role}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
-                          disabled={submitting}
-                        />
-                      </div>
-                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       {isPermanentAdmin && (
+                         <div>
+                           <Label htmlFor={`name-${userItem.code}`}>Name</Label>
+                           <Input
+                             id={`name-${userItem.code}`}
+                             value={editForm.name}
+                             onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                             disabled={submitting}
+                           />
+                         </div>
+                       )}
+                       {(!userItem.isAdmin && userItem.code !== '10101') && (
+                         <div>
+                           <Label htmlFor={`role-${userItem.code}`}>Role</Label>
+                           <Input
+                             id={`role-${userItem.code}`}
+                             value={editForm.role}
+                             onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
+                             disabled={submitting}
+                           />
+                         </div>
+                       )}
+                     </div>
                   ) : (
                     <div>
                       <div className="flex items-center gap-3 mb-1">
                         <h3 className="font-semibold">{userItem.name}</h3>
-                        <Badge variant="outline">{userItem.code}</Badge>
+                        {isPermanentAdmin && (
+                          <Badge variant="outline">{userItem.code}</Badge>
+                        )}
                         {userItem.isAdmin && (
                           <Badge className="bg-frc-orange/10 text-frc-orange border-frc-orange/20">
                             Admin
@@ -528,14 +560,16 @@ const Admin: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditUser(userItem.code)}
-                        disabled={submitting}
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </Button>
+                       {(isPermanentAdmin || (!userItem.isAdmin && userItem.code !== '10101')) && (
+                         <Button
+                           size="sm"
+                           variant="outline"
+                           onClick={() => handleEditUser(userItem.code)}
+                           disabled={submitting}
+                         >
+                           <Edit3 className="w-4 h-4" />
+                         </Button>
+                       )}
                       {isPermanentAdmin && userItem.code !== '10101' && (
                         <>
                           <Button
