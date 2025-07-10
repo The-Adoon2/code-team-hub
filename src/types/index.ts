@@ -11,7 +11,7 @@ export interface Announcement {
   title: string;
   content: string;
   author: string;
-  timestamp: Date;
+  created_at: string;
   priority: 'low' | 'medium' | 'high';
 }
 
@@ -20,37 +20,34 @@ export interface ProgressTask {
   title: string;
   description: string;
   completed: boolean;
-  assignedTo?: string;
-  dueDate?: Date;
+  assigned_to?: string;
+  due_date?: string;
   category: string;
 }
 
 export interface ScoutingData {
   id: string;
-  teamNumber: string;
-  matchNumber: string;
-  scoutedBy: string;
-  timestamp: Date;
-  auto: {
-    mobility: boolean;
-    speakerScored: number;
-    ampScored: number;
-    notes: string;
-  };
-  teleop: {
-    speakerScored: number;
-    ampScored: number;
-    trapScored: number;
-    climbed: boolean;
-    parked: boolean;
-    notes: string;
-  };
-  overall: {
-    defense: number; // 1-5 scale
-    driverSkill: number; // 1-5 scale
-    robotReliability: number; // 1-5 scale
-    generalNotes: string;
-  };
+  team_number: string;
+  match_number: string;
+  scouted_by: string;
+  created_at: string;
+  auto_points_scored: number;
+  teleop_points_scored: number;
+  climbed: boolean;
+  parked: boolean;
+  auto_notes: string;
+  teleop_notes: string;
+  defense_rating: number;
+  driver_skill_rating: number;
+  robot_reliability_rating: number;
+  general_notes: string;
+}
+
+export interface CompetitionSettings {
+  id: string;
+  competition_date?: string;
+  team_member_count: number;
+  updated_at: string;
 }
 
 export interface AuthContextType {

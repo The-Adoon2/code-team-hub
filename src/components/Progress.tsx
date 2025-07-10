@@ -1,68 +1,153 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ProgressTask } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckCircle, Clock, Plus, User, Calendar } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { CheckCircle, Clock, Plus, User, Calendar, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const Progress: React.FC = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   
-  const [tasks, setTasks] = useState<ProgressTask[]>([
-    {
-      id: '1',
-      title: 'Design Robot Chassis',
-      description: 'Create detailed CAD drawings for the robot chassis including mounting points for all subsystems.',
-      completed: true,
-      assignedTo: 'Design Team',
-      dueDate: new Date('2024-01-20'),
-      category: 'Design'
-    },
-    {
-      id: '2',
-      title: 'Program Autonomous Routine',
-      description: 'Develop and test autonomous routine for scoring in the speaker during the autonomous period.',
-      completed: false,
-      assignedTo: 'Programming Team',
-      dueDate: new Date('2024-01-25'),
-      category: 'Programming'
-    },
-    {
-      id: '3',
-      title: 'Build Drivetrain',
-      description: 'Assemble the drivetrain using the completed chassis design and install motors.',
-      completed: false,
-      assignedTo: 'Build Team',
-      dueDate: new Date('2024-01-30'),
-      category: 'Build'
-    },
-    {
-      id: '4',
-      title: 'Create Team Strategy',
-      description: 'Develop comprehensive strategy for alliance selection and match play.',
-      completed: false,
-      assignedTo: 'Strategy Team',
-      dueDate: new Date('2024-02-05'),
-      category: 'Strategy'
-    },
-    {
-      id: '5',
-      title: 'Test Safety Systems',
-      description: 'Verify all safety systems are working properly including emergency stops and guards.',
-      completed: false,
-      assignedTo: 'Safety Team',
-      dueDate: new Date('2024-02-01'),
-      category: 'Safety'
-    }
-  ]);
+  const [tasks, setTasks] = useState<ProgressTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    assigned_to: '',
+    due_date: '',
+    category: ''
+  });
 
-  const toggleTask = (taskId: string) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  const loadTasks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setTasks(data || []);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      toast({
+        title: "Error Loading Tasks",
+        description: "Could not load project tasks.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddTask = async () => {
+    if (!newTask.title.trim() || !newTask.description.trim() || !newTask.category.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in title, description, and category.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert([{
+          title: newTask.title,
+          description: newTask.description,
+          assigned_to: newTask.assigned_to || null,
+          due_date: newTask.due_date || null,
+          category: newTask.category
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setTasks(prev => [...prev, data]);
+      setNewTask({ title: '', description: '', assigned_to: '', due_date: '', category: '' });
+      setShowAddDialog(false);
+      
+      toast({
+        title: "Task Added",
+        description: "New task has been created successfully.",
+      });
+    } catch (error) {
+      console.error('Error adding task:', error);
+      toast({
+        title: "Error",
+        description: "Could not add task.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleTask = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ completed: !task.completed })
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prev => prev.map(t => 
+        t.id === taskId ? { ...t, completed: !t.completed } : t
+      ));
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast({
+        title: "Error",
+        description: "Could not update task.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      toast({
+        title: "Task Deleted",
+        description: "Task has been removed successfully.",
+      });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast({
+        title: "Error",
+        description: "Could not delete task.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getCategoryColor = (category: string) => {
@@ -76,9 +161,17 @@ const Progress: React.FC = () => {
     return colors[category] || 'bg-gray-500/10 text-gray-500 border-gray-500/20';
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-frc-blue"></div>
+      </div>
+    );
+  }
+
   const completedTasks = tasks.filter(task => task.completed).length;
   const totalTasks = tasks.length;
-  const progressPercentage = (completedTasks / totalTasks) * 100;
+  const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -119,57 +212,136 @@ const Progress: React.FC = () => {
               Project Tasks
             </CardTitle>
             {user?.isAdmin && (
-              <Button size="sm" className="frc-accent-button text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Task
-              </Button>
+              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="frc-accent-button text-white">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Task</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="taskTitle">Title</Label>
+                      <Input
+                        id="taskTitle"
+                        value={newTask.title}
+                        onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="Enter task title"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="taskDescription">Description</Label>
+                      <Textarea
+                        id="taskDescription"
+                        value={newTask.description}
+                        onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Enter task description"
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="taskCategory">Category</Label>
+                      <Input
+                        id="taskCategory"
+                        value={newTask.category}
+                        onChange={(e) => setNewTask(prev => ({ ...prev, category: e.target.value }))}
+                        placeholder="e.g., Design, Programming, Build"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="taskAssignee">Assigned To (Optional)</Label>
+                      <Input
+                        id="taskAssignee"
+                        value={newTask.assigned_to}
+                        onChange={(e) => setNewTask(prev => ({ ...prev, assigned_to: e.target.value }))}
+                        placeholder="Enter team member name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="taskDueDate">Due Date (Optional)</Label>
+                      <Input
+                        id="taskDueDate"
+                        type="date"
+                        value={newTask.due_date}
+                        onChange={(e) => setNewTask(prev => ({ ...prev, due_date: e.target.value }))}
+                      />
+                    </div>
+                    <Button onClick={handleAddTask} className="w-full">
+                      Create Task
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className={`border rounded-lg p-4 transition-all duration-200 ${
-                task.completed ? 'bg-green-500/5 border-green-500/20' : 'border-border hover:bg-muted/30'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <Checkbox
-                  checked={task.completed}
-                  onCheckedChange={() => toggleTask(task.id)}
-                  className="mt-1"
-                />
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className={`font-semibold ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                      {task.title}
-                    </h3>
-                    <Badge className={getCategoryColor(task.category)}>
-                      {task.category}
-                    </Badge>
-                  </div>
-                  <p className={`text-sm ${task.completed ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
-                    {task.description}
-                  </p>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    {task.assignedTo && (
-                      <div className="flex items-center gap-1">
-                        <User className="w-4 h-4" />
-                        <span>{task.assignedTo}</span>
+          {tasks.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No tasks created yet.</p>
+              <p className="text-sm">Admins can add tasks to track team progress!</p>
+            </div>
+          ) : (
+            tasks.map((task) => (
+              <div
+                key={task.id}
+                className={`border rounded-lg p-4 transition-all duration-200 ${
+                  task.completed ? 'bg-green-500/5 border-green-500/20' : 'border-border hover:bg-muted/30'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={task.completed}
+                    onCheckedChange={() => toggleTask(task.id)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className={`font-semibold ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                        {task.title}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getCategoryColor(task.category)}>
+                          {task.category}
+                        </Badge>
+                        {user?.isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteTask(task.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
-                    )}
-                    {task.dueDate && (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>Due: {task.dueDate.toLocaleDateString()}</span>
-                      </div>
-                    )}
+                    </div>
+                    <p className={`text-sm ${task.completed ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
+                      {task.description}
+                    </p>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      {task.assigned_to && (
+                        <div className="flex items-center gap-1">
+                          <User className="w-4 h-4" />
+                          <span>{task.assigned_to}</span>
+                        </div>
+                      )}
+                      {task.due_date && (
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

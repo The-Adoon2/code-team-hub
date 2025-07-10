@@ -27,6 +27,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentTab, onTabChange }) =>
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'progress', label: 'Progress' },
     { id: 'scouting', label: 'Scouting' },
+    { id: 'team', label: 'Team' },
     ...(user?.isAdmin ? [{ id: 'admin', label: 'Admin' }] : []),
   ];
 

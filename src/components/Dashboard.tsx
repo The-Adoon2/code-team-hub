@@ -1,43 +1,194 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Announcement } from '@/types';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Announcement, CompetitionSettings } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, Plus, Calendar, User, AlertTriangle, Info, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Bell, Plus, Calendar, User, AlertTriangle, Info, CheckCircle, Trash2, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  const [announcements] = useState<Announcement[]>([
-    {
-      id: '1',
-      title: 'Team Meeting Tomorrow',
-      content: 'Don\'t forget about our team meeting tomorrow at 6 PM in the workshop. We\'ll be discussing the upcoming competition strategy.',
-      author: 'Team Captain',
-      timestamp: new Date('2024-01-15T10:00:00'),
-      priority: 'high'
-    },
-    {
-      id: '2',
-      title: 'New Safety Protocols',
-      content: 'Please review the updated safety guidelines posted in the workshop. Safety glasses are now mandatory at all times.',
-      author: 'Safety Officer',
-      timestamp: new Date('2024-01-14T14:30:00'),
-      priority: 'medium'
-    },
-    {
-      id: '3',
-      title: 'Parts Order Update',
-      content: 'The motor controllers we ordered have arrived and are ready for pickup from the main office.',
-      author: 'Build Team Lead',
-      timestamp: new Date('2024-01-13T09:15:00'),
-      priority: 'low'
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [competitionSettings, setCompetitionSettings] = useState<CompetitionSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [newAnnouncement, setNewAnnouncement] = useState({
+    title: '',
+    content: '',
+    priority: 'medium' as 'low' | 'medium' | 'high'
+  });
+  const [newCompetitionDate, setNewCompetitionDate] = useState('');
+  const [newTeamMemberCount, setNewTeamMemberCount] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Load announcements
+      const { data: announcementsData, error: announcementsError } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (announcementsError) throw announcementsError;
+      setAnnouncements(announcementsData || []);
+
+      // Load competition settings
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('competition_settings')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
+      setCompetitionSettings(settingsData);
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast({
+        title: "Error Loading Data",
+        description: "Could not load dashboard information.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  const handleAddAnnouncement = async () => {
+    if (!newAnnouncement.title.trim() || !newAnnouncement.content.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in both title and content.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('announcements')
+        .insert([{
+          title: newAnnouncement.title,
+          content: newAnnouncement.content,
+          author: user?.name || 'Admin',
+          priority: newAnnouncement.priority
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAnnouncements(prev => [data, ...prev]);
+      setNewAnnouncement({ title: '', content: '', priority: 'medium' });
+      setShowAddDialog(false);
+      
+      toast({
+        title: "Announcement Added",
+        description: "New announcement has been created successfully.",
+      });
+    } catch (error) {
+      console.error('Error adding announcement:', error);
+      toast({
+        title: "Error",
+        description: "Could not add announcement.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this announcement?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('announcements')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setAnnouncements(prev => prev.filter(a => a.id !== id));
+      toast({
+        title: "Announcement Deleted",
+        description: "Announcement has been removed successfully.",
+      });
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      toast({
+        title: "Error",
+        description: "Could not delete announcement.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateSettings = async () => {
+    try {
+      const updateData: any = {};
+      if (newCompetitionDate) updateData.competition_date = newCompetitionDate;
+      if (newTeamMemberCount) updateData.team_member_count = parseInt(newTeamMemberCount);
+
+      if (competitionSettings) {
+        const { error } = await supabase
+          .from('competition_settings')
+          .update(updateData)
+          .eq('id', competitionSettings.id);
+
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('competition_settings')
+          .insert([updateData])
+          .select()
+          .single();
+
+        if (error) throw error;
+        setCompetitionSettings(data);
+      }
+
+      await loadData();
+      setShowSettingsDialog(false);
+      setNewCompetitionDate('');
+      setNewTeamMemberCount('');
+      
+      toast({
+        title: "Settings Updated",
+        description: "Competition settings have been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      toast({
+        title: "Error",
+        description: "Could not update settings.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getDaysToCompetition = () => {
+    if (!competitionSettings?.competition_date) return null;
+    const today = new Date();
+    const competitionDate = new Date(competitionSettings.competition_date);
+    const diffTime = competitionDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
@@ -61,16 +212,68 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-frc-blue"></div>
+      </div>
+    );
+  }
+
+  const daysToCompetition = getDaysToCompetition();
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-frc-blue/10 via-frc-blue/5 to-frc-orange/10 rounded-lg p-6 border border-frc-blue/20">
-        <h2 className="text-2xl font-bold mb-2">
-          Welcome back, {user?.name}! 
-        </h2>
-        <p className="text-muted-foreground">
-          Role: {user?.role} | Code: {user?.code}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">
+              Welcome back, {user?.name}! 
+            </h2>
+            <p className="text-muted-foreground">
+              Role: {user?.role} | Code: {user?.code}
+            </p>
+          </div>
+          {user?.code === '10101' && (
+            <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Competition Settings</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="competitionDate">Competition Date</Label>
+                    <Input
+                      id="competitionDate"
+                      type="date"
+                      value={newCompetitionDate || competitionSettings?.competition_date || ''}
+                      onChange={(e) => setNewCompetitionDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="teamMemberCount">Team Member Count</Label>
+                    <Input
+                      id="teamMemberCount"
+                      type="number"
+                      value={newTeamMemberCount || competitionSettings?.team_member_count || ''}
+                      onChange={(e) => setNewTeamMemberCount(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={handleUpdateSettings} className="w-full">
+                    Update Settings
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -92,7 +295,7 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Team Members</p>
-                <p className="text-2xl font-bold text-frc-orange">23</p>
+                <p className="text-2xl font-bold text-frc-orange">{competitionSettings?.team_member_count || 0}</p>
               </div>
               <User className="w-8 h-8 text-frc-orange" />
             </div>
@@ -104,7 +307,9 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Days to Competition</p>
-                <p className="text-2xl font-bold text-green-500">42</p>
+                <p className="text-2xl font-bold text-green-500">
+                  {daysToCompetition !== null ? daysToCompetition : '—'}
+                </p>
               </div>
               <Calendar className="w-8 h-8 text-green-500" />
             </div>
@@ -121,37 +326,102 @@ const Dashboard: React.FC = () => {
               Team Announcements
             </CardTitle>
             {user?.isAdmin && (
-              <Button size="sm" className="frc-accent-button text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                New Announcement
-              </Button>
+              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="frc-accent-button text-white">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Announcement
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Announcement</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="title">Title</Label>
+                      <Input
+                        id="title"
+                        value={newAnnouncement.title}
+                        onChange={(e) => setNewAnnouncement(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="Enter announcement title"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="content">Content</Label>
+                      <Textarea
+                        id="content"
+                        value={newAnnouncement.content}
+                        onChange={(e) => setNewAnnouncement(prev => ({ ...prev, content: e.target.value }))}
+                        placeholder="Enter announcement content"
+                        rows={4}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="priority">Priority</Label>
+                      <Select value={newAnnouncement.priority} onValueChange={(value: 'low' | 'medium' | 'high') => setNewAnnouncement(prev => ({ ...prev, priority: value }))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleAddAnnouncement} className="w-full">
+                      Create Announcement
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {announcements.map((announcement) => (
-            <div
-              key={announcement.id}
-              className="border border-border rounded-lg p-4 hover:bg-muted/30 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  {getPriorityIcon(announcement.priority)}
-                  <h3 className="font-semibold">{announcement.title}</h3>
-                  <Badge className={getPriorityColor(announcement.priority)}>
-                    {announcement.priority}
-                  </Badge>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {announcement.timestamp.toLocaleDateString()}
-                </span>
-              </div>
-              <p className="text-muted-foreground mb-2">{announcement.content}</p>
-              <p className="text-sm text-muted-foreground">
-                By: {announcement.author}
-              </p>
+          {announcements.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No announcements yet.</p>
+              <p className="text-sm">Admins can create announcements to keep the team informed!</p>
             </div>
-          ))}
+          ) : (
+            announcements.map((announcement) => (
+              <div
+                key={announcement.id}
+                className="border border-border rounded-lg p-4 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    {getPriorityIcon(announcement.priority)}
+                    <h3 className="font-semibold">{announcement.title}</h3>
+                    <Badge className={getPriorityColor(announcement.priority)}>
+                      {announcement.priority}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(announcement.created_at).toLocaleDateString()}
+                    </span>
+                    {user?.isAdmin && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteAnnouncement(announcement.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-muted-foreground mb-2">{announcement.content}</p>
+                <p className="text-sm text-muted-foreground">
+                  By: {announcement.author}
+                </p>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

@@ -6,6 +6,7 @@ import Layout from '@/components/Layout';
 import Dashboard from '@/components/Dashboard';
 import Progress from '@/components/Progress';
 import Scouting from '@/components/Scouting';
+import TeamMembers from '@/components/TeamMembers';
 import Admin from '@/components/Admin';
 
 const Index = () => {
@@ -24,6 +25,8 @@ const Index = () => {
         return <Progress />;
       case 'scouting':
         return <Scouting />;
+      case 'team':
+        return <TeamMembers />;
       case 'admin':
         return <Admin />;
       default:
