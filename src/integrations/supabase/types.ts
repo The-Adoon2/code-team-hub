@@ -7,10 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
+    PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
   public: {
     Tables: {
@@ -185,9 +185,55 @@ export type Database = {
         }
         Relationships: []
       }
+      time_sessions: {
+        Row: {
+          admin_notes: string | null
+          check_in_time: string
+          check_out_time: string | null
+          created_at: string
+          id: string
+          is_flagged: boolean
+          total_hours: number | null
+          updated_at: string
+          user_code: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          check_in_time?: string
+          check_out_time?: string | null
+          created_at?: string
+          id?: string
+          is_flagged?: boolean
+          total_hours?: number | null
+          updated_at?: string
+          user_code: string
+        }
+        Update: {
+          admin_notes?: string | null
+          check_in_time?: string
+          check_out_time?: string | null
+          created_at?: string
+          id?: string
+          is_flagged?: boolean
+          total_hours?: number | null
+          updated_at?: string
+          user_code?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      user_hours_summary: {
+        Row: {
+          code: string | null
+          flagged_sessions: number | null
+          last_activity: string | null
+          name: string | null
+          role: string | null
+          total_hours: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       set_current_user_code: {
