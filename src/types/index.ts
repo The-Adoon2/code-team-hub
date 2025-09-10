@@ -50,6 +50,27 @@ export interface CompetitionSettings {
   updated_at: string;
 }
 
+export interface TimeSession {
+  id: string;
+  user_code: string;
+  check_in_time: string;
+  check_out_time?: string;
+  total_hours?: number;
+  is_flagged: boolean;
+  admin_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserHoursSummary {
+  code: string;
+  name: string;
+  role: string;
+  total_hours: number;
+  flagged_sessions: number;
+  last_activity?: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   login: (code: string) => Promise<boolean>;

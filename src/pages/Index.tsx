@@ -8,6 +8,7 @@ import Progress from '@/components/Progress';
 import Scouting from '@/components/Scouting';
 import TeamMembers from '@/components/TeamMembers';
 import Admin from '@/components/Admin';
+import TimeTracking from '@/components/TimeTracking';
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
@@ -25,6 +26,8 @@ const Index = () => {
         return <Progress />;
       case 'scouting':
         return <Scouting />;
+      case 'time':
+        return <TimeTracking />;
       case 'team':
         return <TeamMembers />;
       case 'admin':
