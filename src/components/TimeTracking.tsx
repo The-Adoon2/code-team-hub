@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, LogIn, LogOut, AlertTriangle, Edit2, Save, X } from 'lucide-react';
+import { Clock, AlertTriangle, Edit2, Save, X, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { TimeSession, UserHoursSummary } from '@/types';
@@ -22,16 +22,16 @@ const TimeTracking: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [userHours, setUserHours] = useState<UserHoursSummary[]>([]);
-  const [currentSession, setCurrentSession] = useState<TimeSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editHours, setEditHours] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [showIds, setShowIds] = useState(false);
+  const [adminCodeInput, setAdminCodeInput] = useState('');
 
   useEffect(() => {
     if (user) {
       fetchUserHours();
-      checkActiveSession();
     }
   }, [user]);
 
@@ -61,124 +61,26 @@ const TimeTracking: React.FC = () => {
     }
   };
 
-  const checkActiveSession = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await withUserContext(user.code, async () => {
-        return supabase
-          .from('time_sessions')
-          .select('*')
-          .eq('user_code', user.code)
-          .is('check_out_time', null)
-          .order('check_in_time', { ascending: false })
-          .limit(1)
-          .single();
-      });
-
-      if (!error && data) {
-        setCurrentSession(data);
-      }
-    } catch (error) {
-      console.error('Error checking active session:', error);
-    }
-  };
-
-  const handleSignIn = async () => {
-    if (!user || currentSession) return;
-
-    setLoading(true);
-    try {
-      const { data, error } = await withUserContext(user.code, async () => {
-        return supabase
-          .from('time_sessions')
-          .insert({
-            user_code: user.code,
-          })
-          .select()
-          .single();
-      });
-
-      if (error) {
-        console.error('Error signing in:', error);
+  const handleToggleIdVisibility = () => {
+    if (showIds) {
+      setShowIds(false);
+      setAdminCodeInput('');
+    } else {
+      // Check if the entered code is the permanent admin code
+      if (adminCodeInput === '10101') {
+        setShowIds(true);
+        setAdminCodeInput('');
         toast({
-          title: "Error",
-          description: "Failed to sign in.",
+          title: "ID Visibility Enabled",
+          description: "User IDs are now visible.",
+        });
+      } else {
+        toast({
+          title: "Access Denied",
+          description: "Invalid permanent admin code.",
           variant: "destructive",
         });
-        return;
       }
-
-      setCurrentSession(data);
-      toast({
-        title: "Signed In",
-        description: "You have successfully signed in to the club.",
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    if (!user || !currentSession) return;
-
-    setLoading(true);
-    try {
-      const checkOutTime = new Date();
-      const checkInTime = new Date(currentSession.check_in_time);
-      const hoursSpent = Math.round(((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)) * 100) / 100;
-      
-      // Cap at 5 hours and flag if exceeded
-      const cappedHours = Math.min(hoursSpent, 5);
-      const isFlagged = hoursSpent > 5;
-
-      const { error } = await withUserContext(user.code, async () => {
-        return supabase
-          .from('time_sessions')
-          .update({
-            check_out_time: checkOutTime.toISOString(),
-            total_hours: cappedHours,
-            is_flagged: isFlagged,
-          })
-          .eq('id', currentSession.id);
-      });
-
-      if (error) {
-        console.error('Error signing out:', error);
-        toast({
-          title: "Error",
-          description: "Failed to sign out.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setCurrentSession(null);
-      fetchUserHours();
-
-      toast({
-        title: "Signed Out",
-        description: isFlagged 
-          ? `You have signed out. Session was capped at 5 hours (actual: ${hoursSpent.toFixed(2)}h).`
-          : `You have signed out. Total time: ${cappedHours.toFixed(2)} hours.`,
-        variant: isFlagged ? "destructive" : "default",
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -240,17 +142,6 @@ const TimeTracking: React.FC = () => {
     }
   };
 
-  const getCurrentSessionDuration = () => {
-    if (!currentSession) return '0:00';
-    
-    const now = new Date();
-    const start = new Date(currentSession.check_in_time);
-    const diffMs = now.getTime() - start.getTime();
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${hours}:${minutes.toString().padStart(2, '0')}`;
-  };
 
   if (!user) {
     return (
@@ -266,48 +157,34 @@ const TimeTracking: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Time Tracking</h1>
-        <p className="text-muted-foreground">Track your time spent at the robotics club</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Time Tracking</h1>
+          <p className="text-muted-foreground">View team hours and manage time tracking</p>
+        </div>
+        
+        {user?.code === '10101' && (
+          <div className="flex items-center gap-2">
+            {!showIds && (
+              <Input
+                type="password"
+                placeholder="Admin code"
+                value={adminCodeInput}
+                onChange={(e) => setAdminCodeInput(e.target.value)}
+                className="w-32"
+              />
+            )}
+            <Button
+              variant="outline"
+              onClick={handleToggleIdVisibility}
+              className="flex items-center gap-2"
+            >
+              {showIds ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showIds ? 'Hide IDs' : 'Show IDs'}
+            </Button>
+          </div>
+        )}
       </div>
-
-      {/* Sign In/Out Card */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Your Session
-          </CardTitle>
-          <CardDescription>
-            {currentSession 
-              ? `You signed in at ${new Date(currentSession.check_in_time).toLocaleTimeString()}. Current duration: ${getCurrentSessionDuration()}`
-              : 'You are not currently signed in'
-            }
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {currentSession ? (
-            <Button 
-              onClick={handleSignOut} 
-              disabled={loading}
-              variant="destructive"
-              className="flex items-center gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </Button>
-          ) : (
-            <Button 
-              onClick={handleSignIn} 
-              disabled={loading}
-              className="flex items-center gap-2"
-            >
-              <LogIn className="h-4 w-4" />
-              Sign In
-            </Button>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Hours Summary */}
       <Card>
@@ -321,8 +198,11 @@ const TimeTracking: React.FC = () => {
               <div key={userHour.code} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-medium">{userHour.name || `User ${userHour.code}`}</h3>
+                    <h3 className="font-medium">{userHour.name || `User ${showIds ? userHour.code : '****'}`}</h3>
                     <Badge variant="outline">{userHour.role}</Badge>
+                    {showIds && (
+                      <Badge variant="secondary">ID: {userHour.code}</Badge>
+                    )}
                     {userHour.flagged_sessions > 0 && (
                       <Badge variant="destructive" className="flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" />

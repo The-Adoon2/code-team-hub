@@ -9,16 +9,22 @@ import Scouting from '@/components/Scouting';
 import TeamMembers from '@/components/TeamMembers';
 import Admin from '@/components/Admin';
 import TimeTracking from '@/components/TimeTracking';
+import AdminTimeTracking from '@/components/AdminTimeTracking';
 
 const Index = () => {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [currentTab, setCurrentTab] = useState('dashboard');
+  const [showAdminTime, setShowAdminTime] = useState(false);
 
   if (!isAuthenticated) {
     return <LoginForm />;
   }
 
   const renderCurrentTab = () => {
+    if (showAdminTime) {
+      return <AdminTimeTracking onExit={() => setShowAdminTime(false)} />;
+    }
+
     switch (currentTab) {
       case 'dashboard':
         return <Dashboard />;
@@ -31,14 +37,30 @@ const Index = () => {
       case 'team':
         return <TeamMembers />;
       case 'admin':
-        return <Admin />;
+        return user?.isAdmin ? <Admin /> : <Dashboard />;
+      case 'admin-time':
+        if (user?.code === '10101') {
+          setShowAdminTime(true);
+          return null;
+        }
+        return <Dashboard />;
       default:
         return <Dashboard />;
     }
   };
 
   return (
-    <Layout currentTab={currentTab} onTabChange={setCurrentTab}>
+    <Layout 
+      currentTab={showAdminTime ? 'admin-time' : currentTab} 
+      onTabChange={(tab) => {
+        if (tab === 'admin-time') {
+          setShowAdminTime(true);
+        } else {
+          setShowAdminTime(false);
+          setCurrentTab(tab);
+        }
+      }}
+    >
       {renderCurrentTab()}
     </Layout>
   );

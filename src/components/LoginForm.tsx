@@ -67,7 +67,7 @@ const LoginForm: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Input
-                  type="text"
+                  type="password"
                   placeholder="Enter 5-digit code"
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
