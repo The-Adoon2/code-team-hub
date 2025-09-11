@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, AlertTriangle, Edit2, Save, X, Eye, EyeOff } from 'lucide-react';
+import { Clock, AlertTriangle, Edit2, Save, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGlobalSettings } from '@/contexts/GlobalSettingsContext';
 import { TimeSession, UserHoursSummary } from '@/types';
 import { withUserContext } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
@@ -20,14 +21,13 @@ import {
 
 const TimeTracking: React.FC = () => {
   const { user } = useAuth();
+  const { showIds } = useGlobalSettings();
   const { toast } = useToast();
   const [userHours, setUserHours] = useState<UserHoursSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editHours, setEditHours] = useState('');
   const [editNotes, setEditNotes] = useState('');
-  const [showIds, setShowIds] = useState(false);
-  const [adminCodeInput, setAdminCodeInput] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -61,28 +61,6 @@ const TimeTracking: React.FC = () => {
     }
   };
 
-  const handleToggleIdVisibility = () => {
-    if (showIds) {
-      setShowIds(false);
-      setAdminCodeInput('');
-    } else {
-      // Check if the entered code is the permanent admin code
-      if (adminCodeInput === '10101') {
-        setShowIds(true);
-        setAdminCodeInput('');
-        toast({
-          title: "ID Visibility Enabled",
-          description: "User IDs are now visible.",
-        });
-      } else {
-        toast({
-          title: "Access Denied",
-          description: "Invalid permanent admin code.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
 
   const handleEditHours = async (userCode: string) => {
     if (!user?.isAdmin || !editHours) return;
@@ -157,33 +135,9 @@ const TimeTracking: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Time Tracking</h1>
-          <p className="text-muted-foreground">View team hours and manage time tracking</p>
-        </div>
-        
-        {user?.code === '10101' && (
-          <div className="flex items-center gap-2">
-            {!showIds && (
-              <Input
-                type="password"
-                placeholder="Admin code"
-                value={adminCodeInput}
-                onChange={(e) => setAdminCodeInput(e.target.value)}
-                className="w-32"
-              />
-            )}
-            <Button
-              variant="outline"
-              onClick={handleToggleIdVisibility}
-              className="flex items-center gap-2"
-            >
-              {showIds ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              {showIds ? 'Hide IDs' : 'Show IDs'}
-            </Button>
-          </div>
-        )}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">Time Tracking</h1>
+        <p className="text-muted-foreground">View team hours and manage time tracking</p>
       </div>
 
       {/* Hours Summary */}

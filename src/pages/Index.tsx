@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { GlobalSettingsProvider } from '@/contexts/GlobalSettingsContext';
 import LoginForm from '@/components/LoginForm';
 import Layout from '@/components/Layout';
 import Dashboard from '@/components/Dashboard';
@@ -50,19 +50,22 @@ const Index = () => {
   };
 
   return (
-    <Layout 
-      currentTab={showAdminTime ? 'admin-time' : currentTab} 
-      onTabChange={(tab) => {
-        if (tab === 'admin-time') {
-          setShowAdminTime(true);
-        } else {
-          setShowAdminTime(false);
-          setCurrentTab(tab);
-        }
-      }}
-    >
-      {renderCurrentTab()}
-    </Layout>
+    <GlobalSettingsProvider>
+      <Layout 
+        currentTab={showAdminTime ? 'admin-time' : currentTab} 
+        onTabChange={(tab) => {
+          if (tab === 'admin-time') {
+            setShowAdminTime(true);
+          } else {
+            setShowAdminTime(false);
+            setCurrentTab(tab);
+          }
+        }}
+        isAdminTimeLocked={showAdminTime}
+      >
+        {renderCurrentTab()}
+      </Layout>
+    </GlobalSettingsProvider>
   );
 };
 

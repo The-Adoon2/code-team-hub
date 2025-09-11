@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Clock, LogIn, LogOut, ArrowLeft, Shield } from 'lucide-react';
+import { Clock, LogIn, LogOut, ArrowLeft, Shield, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGlobalSettings } from '@/contexts/GlobalSettingsContext';
 import { TimeSession, UserHoursSummary } from '@/types';
 import { withUserContext } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +17,7 @@ interface AdminTimeTrackingProps {
 
 const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
   const { user } = useAuth();
+  const { showIds } = useGlobalSettings();
   const { toast } = useToast();
   const [userHours, setUserHours] = useState<UserHoursSummary[]>([]);
   const [activeSessions, setActiveSessions] = useState<TimeSession[]>([]);
@@ -199,6 +201,21 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
     }
   };
 
+  // Create a 7x6 grid (42 total slots)
+  const createGrid = () => {
+    const grid = [];
+    const totalSlots = 42; // 7 columns × 6 rows
+    
+    for (let i = 0; i < totalSlots; i++) {
+      const userHour = userHours[i];
+      grid.push(userHour || null);
+    }
+    
+    return grid;
+  };
+
+  const gridData = createGrid();
+  
   const getSessionDuration = (checkInTime: string) => {
     const now = new Date();
     const start = new Date(checkInTime);
@@ -299,46 +316,90 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
         </CardContent>
       </Card>
 
-      {/* Team Members - Sign In */}
+      {/* Team Members Grid - 7x6 */}
       <Card>
         <CardHeader>
-          <CardTitle>Team Members</CardTitle>
-          <CardDescription>Click to sign in team members</CardDescription>
+          <CardTitle>Team Members Grid</CardTitle>
+          <CardDescription>7×6 grid layout - click to sign members in/out</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3">
-            {userHours.map((userHour) => {
-              const hasActiveSession = activeSessions.some(session => session.user_code === userHour.code);
-              return (
-                <div key={userHour.code} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{userHour.name || `User ${userHour.code}`}</h3>
-                      <Badge variant="outline">{userHour.role}</Badge>
-                      <Badge variant="secondary">ID: {userHour.code}</Badge>
-                      {hasActiveSession && (
-                        <Badge variant="default" className="bg-green-500">Active</Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Total hours: {userHour.total_hours.toFixed(2)}
-                      {userHour.last_activity && (
-                        <span> • Last activity: {new Date(userHour.last_activity).toLocaleDateString()}</span>
-                      )}
-                    </p>
-                  </div>
-                  
-                  <Button
-                    onClick={() => handleSignIn(userHour.code)}
-                    disabled={loading || hasActiveSession}
-                    className="flex items-center gap-2"
+          <div className="grid grid-cols-7 gap-3">
+            {gridData.map((userHour, index) => {
+              if (!userHour) {
+                // Empty slot
+                return (
+                  <div
+                    key={`empty-${index}`}
+                    className="aspect-square flex items-center justify-center p-2 border-2 border-dashed border-muted-foreground/20 rounded-lg"
                   >
-                    <LogIn className="h-4 w-4" />
-                    {hasActiveSession ? 'Already Signed In' : 'Sign In'}
-                  </Button>
-                </div>
+                    <User className="h-6 w-6 text-muted-foreground/40" />
+                  </div>
+                );
+              }
+
+              const hasActiveSession = activeSessions.some(session => session.user_code === userHour.code);
+              const activeSession = activeSessions.find(session => session.user_code === userHour.code);
+              
+              return (
+                <Card 
+                  key={userHour.code}
+                  className={`aspect-square cursor-pointer transition-all duration-200 hover:shadow-md ${
+                    hasActiveSession 
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
+                      : 'hover:border-frc-blue'
+                  }`}
+                  onClick={() => {
+                    if (hasActiveSession && activeSession) {
+                      handleSignOut(activeSession.id, userHour.code);
+                    } else {
+                      handleSignIn(userHour.code);
+                    }
+                  }}
+                >
+                  <CardContent className="p-3 h-full flex flex-col justify-between">
+                    <div className="flex-1 min-h-0">
+                      <div className="mb-2">
+                        <div className="text-xs font-medium truncate">
+                          {userHour.name || 'Unknown'}
+                        </div>
+                        {showIds && (
+                          <div className="text-xs text-muted-foreground font-mono">
+                            {userHour.code}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <Badge 
+                          variant={hasActiveSession ? "default" : "outline"}
+                          className={`text-xs px-1 py-0 ${
+                            hasActiveSession ? 'bg-green-500' : ''
+                          }`}
+                        >
+                          {hasActiveSession ? 'ACTIVE' : 'OFFLINE'}
+                        </Badge>
+                        
+                        <div className="text-xs text-muted-foreground">
+                          {userHour.total_hours.toFixed(1)}h total
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {hasActiveSession && activeSession && (
+                      <div className="text-xs text-center font-medium text-green-600 dark:text-green-400 mt-2">
+                        {getSessionDuration(activeSession.check_in_time)}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               );
             })}
+          </div>
+          
+          <div className="mt-4 text-sm text-muted-foreground text-center">
+            <span className="font-medium text-green-600 dark:text-green-400">
+              {activeSessions.length}
+            </span> of {userHours.length} members currently signed in
           </div>
         </CardContent>
       </Card>
