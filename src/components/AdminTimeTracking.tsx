@@ -319,8 +319,8 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
       {/* Team Members Grid - 7x6 */}
       <Card>
         <CardHeader>
-          <CardTitle>Team Members Grid</CardTitle>
-          <CardDescription>7×6 grid layout - click to sign members in/out</CardDescription>
+          <CardTitle>Team Members</CardTitle>
+          <CardDescription>Click to sign members in/out</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-3">
