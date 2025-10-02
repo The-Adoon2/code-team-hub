@@ -16,12 +16,35 @@ import { requestNotificationPermission } from '@/utils/notifications';
 const Index = () => {
   const { user, isAuthenticated } = useAuth();
   const [currentTab, setCurrentTab] = useState('dashboard');
-  const [showAdminTime, setShowAdminTime] = useState(false);
+  const [showAdminTime, setShowAdminTime] = useState(() => {
+    // Initialize from localStorage to persist across reloads
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('adminTimeControlActive') === 'true';
+    }
+    return false;
+  });
 
   // Request notification permission when user logs in
   useEffect(() => {
     if (isAuthenticated) {
       requestNotificationPermission();
+    }
+  }, [isAuthenticated]);
+
+  // Persist admin time control state
+  useEffect(() => {
+    if (showAdminTime) {
+      localStorage.setItem('adminTimeControlActive', 'true');
+    } else {
+      localStorage.removeItem('adminTimeControlActive');
+    }
+  }, [showAdminTime]);
+
+  // Clear admin time control state on logout
+  useEffect(() => {
+    if (!isAuthenticated) {
+      localStorage.removeItem('adminTimeControlActive');
+      setShowAdminTime(false);
     }
   }, [isAuthenticated]);
 
