@@ -71,6 +71,14 @@ export interface UserHoursSummary {
   last_activity?: string;
 }
 
+export interface Message {
+  id: string;
+  content: string;
+  sender_code: string;
+  sender_name: string;
+  created_at: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   login: (code: string) => Promise<boolean>;

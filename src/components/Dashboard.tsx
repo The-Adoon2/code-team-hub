@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { withUserContext } from '@/lib/db';
 import { Bell, Plus, Calendar, User, AlertTriangle, Info, CheckCircle, Trash2, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { showNotification } from '@/utils/notifications';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    subscribeToAnnouncements();
   }, []);
 
   const loadData = async () => {
@@ -238,6 +240,34 @@ const Dashboard: React.FC = () => {
       default:
         return <CheckCircle className="w-4 h-4 text-green-500" />;
     }
+  };
+
+  const subscribeToAnnouncements = () => {
+    const channel = supabase
+      .channel('announcements-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'announcements',
+        },
+        (payload) => {
+          const newAnnouncement = payload.new as Announcement;
+          setAnnouncements((prev) => [newAnnouncement, ...prev]);
+          
+          // Show notification for new announcement
+          showNotification(
+            'New Announcement',
+            `${newAnnouncement.title} - ${newAnnouncement.content.substring(0, 100)}...`
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   };
 
   const getPriorityColor = (priority: string) => {

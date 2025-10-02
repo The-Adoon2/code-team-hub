@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { GlobalSettingsProvider } from '@/contexts/GlobalSettingsContext';
 import LoginForm from '@/components/LoginForm';
@@ -10,11 +10,20 @@ import TeamMembers from '@/components/TeamMembers';
 import Admin from '@/components/Admin';
 import TimeTracking from '@/components/TimeTracking';
 import AdminTimeTracking from '@/components/AdminTimeTracking';
+import Chat from '@/components/Chat';
+import { requestNotificationPermission } from '@/utils/notifications';
 
 const Index = () => {
   const { user, isAuthenticated } = useAuth();
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [showAdminTime, setShowAdminTime] = useState(false);
+
+  // Request notification permission when user logs in
+  useEffect(() => {
+    if (isAuthenticated) {
+      requestNotificationPermission();
+    }
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return <LoginForm />;
@@ -36,6 +45,8 @@ const Index = () => {
         return <TimeTracking />;
       case 'team':
         return <TeamMembers />;
+      case 'chat':
+        return <Chat />;
       case 'admin':
         return user?.isAdmin ? <Admin /> : <Dashboard />;
       case 'admin-time':
