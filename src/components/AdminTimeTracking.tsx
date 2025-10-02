@@ -3,13 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Clock, LogIn, LogOut, ArrowLeft, Shield, User } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Clock, LogIn, LogOut, ArrowLeft, Shield, User, Edit, Trash2, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGlobalSettings } from '@/contexts/GlobalSettingsContext';
 import { TimeSession, UserHoursSummary } from '@/types';
 import { withUserContext } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 interface AdminTimeTrackingProps {
   onExit: () => void;
@@ -21,14 +24,19 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
   const { toast } = useToast();
   const [userHours, setUserHours] = useState<UserHoursSummary[]>([]);
   const [activeSessions, setActiveSessions] = useState<TimeSession[]>([]);
+  const [allSessions, setAllSessions] = useState<TimeSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [exitCode, setExitCode] = useState('');
   const [showExitInput, setShowExitInput] = useState(false);
+  const [editingSession, setEditingSession] = useState<TimeSession | null>(null);
+  const [newHours, setNewHours] = useState('');
+  const [showAllSessions, setShowAllSessions] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchUserHours();
       fetchActiveSessions();
+      fetchAllSessions();
     }
   }, [user]);
 
@@ -71,6 +79,30 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
       }
 
       setActiveSessions(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const fetchAllSessions = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await withUserContext(user.code, async () => {
+        return supabase
+          .from('time_sessions')
+          .select('*')
+          .not('check_out_time', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(50);
+      });
+
+      if (error) {
+        console.error('Error fetching sessions:', error);
+        return;
+      }
+
+      setAllSessions(data || []);
     } catch (error) {
       console.error('Error:', error);
     }
@@ -168,6 +200,7 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
 
       fetchActiveSessions();
       fetchUserHours();
+      fetchAllSessions();
 
       toast({
         title: "User Signed Out",
@@ -175,6 +208,107 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
           ? `User signed out. Session was capped at 5 hours (actual: ${hoursSpent.toFixed(2)}h).`
           : `User signed out. Total time: ${cappedHours.toFixed(2)} hours.`,
         variant: isFlagged ? "destructive" : "default",
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditHours = async () => {
+    if (!user || !editingSession) return;
+
+    const hours = parseFloat(newHours);
+    if (isNaN(hours) || hours < 0) {
+      toast({
+        title: "Invalid Input",
+        description: "Please enter a valid number of hours.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await withUserContext(user.code, async () => {
+        return supabase
+          .from('time_sessions')
+          .update({
+            total_hours: hours,
+            admin_notes: `Hours adjusted by admin from ${editingSession.total_hours}h to ${hours}h`,
+          })
+          .eq('id', editingSession.id);
+      });
+
+      if (error) {
+        console.error('Error updating hours:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update hours.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      fetchAllSessions();
+      fetchUserHours();
+      setEditingSession(null);
+      setNewHours('');
+
+      toast({
+        title: "Hours Updated",
+        description: `Session hours adjusted to ${hours} hours.`,
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!user) return;
+
+    if (!confirm('Are you sure you want to delete this session?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await withUserContext(user.code, async () => {
+        return supabase
+          .from('time_sessions')
+          .delete()
+          .eq('id', sessionId);
+      });
+
+      if (error) {
+        console.error('Error deleting session:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete session.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      fetchAllSessions();
+      fetchUserHours();
+
+      toast({
+        title: "Session Deleted",
+        description: "Time session has been removed.",
       });
     } catch (error) {
       console.error('Error:', error);
@@ -314,6 +448,122 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
             </div>
           )}
         </CardContent>
+      </Card>
+
+      {/* All Sessions History */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Session History
+              </CardTitle>
+              <CardDescription>
+                View and manage completed sessions
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowAllSessions(!showAllSessions)}
+            >
+              {showAllSessions ? 'Hide' : 'Show'} History
+            </Button>
+          </div>
+        </CardHeader>
+        {showAllSessions && (
+          <CardContent>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {allSessions.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">No session history</p>
+              ) : (
+                allSessions.map((session) => (
+                  <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{getUserName(session.user_code)}</h4>
+                        {showIds && (
+                          <span className="text-xs text-muted-foreground font-mono">
+                            {session.user_code}
+                          </span>
+                        )}
+                        {session.is_flagged && (
+                          <Badge variant="destructive" className="text-xs">Flagged</Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        <div>
+                          {format(new Date(session.check_in_time), 'MMM d, yyyy h:mm a')} →{' '}
+                          {session.check_out_time && format(new Date(session.check_out_time), 'h:mm a')}
+                        </div>
+                        <div className="font-medium text-foreground">
+                          Hours: {session.total_hours?.toFixed(2) || '0.00'}h
+                        </div>
+                        {session.admin_notes && (
+                          <div className="text-xs italic mt-1">Note: {session.admin_notes}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingSession(session);
+                              setNewHours(session.total_hours?.toString() || '0');
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Edit Session Hours</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label>User</Label>
+                              <Input value={getUserName(session.user_code)} disabled />
+                            </div>
+                            <div>
+                              <Label>Current Hours</Label>
+                              <Input value={session.total_hours?.toFixed(2) || '0.00'} disabled />
+                            </div>
+                            <div>
+                              <Label htmlFor="newHours">New Hours</Label>
+                              <Input
+                                id="newHours"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={newHours}
+                                onChange={(e) => setNewHours(e.target.value)}
+                                placeholder="Enter new hours"
+                              />
+                            </div>
+                            <Button onClick={handleEditHours} className="w-full" disabled={loading}>
+                              Update Hours
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteSession(session.id)}
+                        disabled={loading}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {/* Team Members Grid - 7x6 */}
