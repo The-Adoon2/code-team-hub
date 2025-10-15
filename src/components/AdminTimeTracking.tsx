@@ -31,6 +31,7 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
   const [editingSession, setEditingSession] = useState<TimeSession | null>(null);
   const [newHours, setNewHours] = useState('');
   const [showAllSessions, setShowAllSessions] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     if (user) {
@@ -39,6 +40,15 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
       fetchAllSessions();
     }
   }, [user]);
+
+  // Update timer every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchUserHours = async () => {
     if (!user) return;
