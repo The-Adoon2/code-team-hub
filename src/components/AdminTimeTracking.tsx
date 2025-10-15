@@ -361,9 +361,8 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
   const gridData = createGrid();
   
   const getSessionDuration = (checkInTime: string) => {
-    const now = new Date();
     const start = new Date(checkInTime);
-    const diffMs = now.getTime() - start.getTime();
+    const diffMs = currentTime.getTime() - start.getTime();
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     
