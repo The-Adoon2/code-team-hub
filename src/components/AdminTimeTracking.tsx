@@ -609,11 +609,15 @@ const AdminTimeTracking: React.FC<AdminTimeTrackingProps> = ({ onExit }) => {
                   <CardContent className="p-3 h-full flex flex-col justify-between">
                     <div className="flex-1 min-h-0">
                       <div className="mb-2">
-                        <div className="text-xs font-medium truncate">
+                        <div className={`text-xs font-medium truncate ${
+                          hasActiveSession ? 'text-black dark:text-black' : ''
+                        }`}>
                           {userHour.name || 'Unknown'}
                         </div>
                         {showIds && (
-                          <div className="text-xs text-muted-foreground font-mono">
+                          <div className={`text-xs font-mono ${
+                            hasActiveSession ? 'text-black/70 dark:text-black/70' : 'text-muted-foreground'
+                          }`}>
                             {userHour.code}
                           </div>
                         )}
