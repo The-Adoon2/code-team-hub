@@ -11,6 +11,7 @@ import Admin from '@/components/Admin';
 import TimeTracking from '@/components/TimeTracking';
 import AdminTimeTracking from '@/components/AdminTimeTracking';
 import Chat from '@/components/Chat';
+import GameManual from '@/components/GameManual';
 import { requestNotificationPermission } from '@/utils/notifications';
 
 const Index = () => {
@@ -70,6 +71,8 @@ const Index = () => {
         return <TeamMembers />;
       case 'chat':
         return <Chat />;
+      case 'game-manual':
+        return <GameManual />;
       case 'admin':
         return user?.isAdmin ? <Admin /> : <Dashboard />;
       case 'admin-time':
