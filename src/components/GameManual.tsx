@@ -8,9 +8,13 @@ import { FileText, MessageSquare, Send, Bot, User, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 
-(pdfjsLib as any).GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/legacy/build/pdf.worker.min.mjs";
+// Use the bundled worker from the same installed pdfjs-dist version (prevents version mismatch errors)
+GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.mjs",
+  import.meta.url,
+).toString();
 
 interface Message {
   role: "user" | "assistant";
@@ -70,7 +74,7 @@ const GameManual: React.FC = () => {
         if (!res.ok) throw new Error("Failed to load PDF");
         const data = await res.arrayBuffer();
 
-        const loadingTask = (pdfjsLib as any).getDocument({ data });
+        const loadingTask = getDocument({ data });
         const pdf = await loadingTask.promise;
 
         const chunks: ManualChunk[] = [];
