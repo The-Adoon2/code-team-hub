@@ -44,7 +44,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: `${GAME_MANUAL_CONTEXT}\n\n--- FULL MANUAL TEXT ---\n${manualBlock}` },
           ...(Array.isArray(messages) ? messages : []),
