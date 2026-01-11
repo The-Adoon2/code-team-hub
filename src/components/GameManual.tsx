@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,38 +21,13 @@ interface Message {
   content: string;
 }
 
-type ManualChunk = {
-  page: number;
-  text: string;
-};
-
-type Excerpt = {
-  page: number;
-  excerpt: string;
-};
-
-function normalizeForSearch(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function scoreChunk(queryTerms: string[], chunk: ManualChunk) {
-  const hay = normalizeForSearch(chunk.text);
-  let score = 0;
-  for (const t of queryTerms) {
-    if (!t) continue;
-    const occurrences = hay.split(t).length - 1;
-    score += occurrences;
-  }
-  return score;
-}
-
 const GameManual: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const [isIndexing, setIsIndexing] = useState(false);
-  const [manualChunks, setManualChunks] = useState<ManualChunk[] | null>(null);
+  const [manualText, setManualText] = useState<string | null>(null);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -63,6 +38,7 @@ const GameManual: React.FC = () => {
     }
   }, [messages]);
 
+  // Extract the ENTIRE PDF text on mount
   useEffect(() => {
     let cancelled = false;
 
@@ -77,7 +53,7 @@ const GameManual: React.FC = () => {
         const loadingTask = getDocument({ data });
         const pdf = await loadingTask.promise;
 
-        const chunks: ManualChunk[] = [];
+        const allPages: string[] = [];
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
           const content = await page.getTextContent();
@@ -87,14 +63,14 @@ const GameManual: React.FC = () => {
             .replace(/\s+/g, " ")
             .trim();
 
-          if (text) chunks.push({ page: pageNum, text });
+          if (text) allPages.push(`[Page ${pageNum}] ${text}`);
         }
 
-        if (!cancelled) setManualChunks(chunks);
+        if (!cancelled) setManualText(allPages.join("\n\n"));
       } catch (e) {
         console.error("PDF index error:", e);
         if (!cancelled) {
-          setManualChunks([]);
+          setManualText("");
           toast({
             title: "Manual search unavailable",
             description:
@@ -115,30 +91,9 @@ const GameManual: React.FC = () => {
     };
   }, [toast]);
 
-  const buildExcerpts = useMemo(() => {
-    return (question: string): Excerpt[] => {
-      if (!manualChunks?.length) return [];
-
-      const q = normalizeForSearch(question);
-      const terms = q.split(" ").filter((t) => t.length >= 3).slice(0, 12);
-      if (!terms.length) return [];
-
-      const scored = manualChunks
-        .map((c) => ({ c, score: scoreChunk(terms, c) }))
-        .filter((x) => x.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 6);
-
-      return scored.map(({ c }) => ({
-        page: c.page,
-        excerpt: c.text.length > 1400 ? `${c.text.slice(0, 1400)}…` : c.text,
-      }));
-    };
-  }, [manualChunks]);
-
-  const invokeChat = async (userMessages: Message[], excerpts: Excerpt[]) => {
+  const invokeChat = async (userMessages: Message[]) => {
     const { data, error } = await supabase.functions.invoke("game-manual-chat", {
-      body: { messages: userMessages, excerpts },
+      body: { messages: userMessages, manualText: manualText ?? "" },
     });
 
     if (error) throw new Error(error.message);
@@ -157,8 +112,7 @@ const GameManual: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const excerpts = buildExcerpts(userMsg.content);
-      const assistantText = await invokeChat(updatedMessages, excerpts);
+      const assistantText = await invokeChat(updatedMessages);
       setMessages((prev) => [...prev, { role: "assistant", content: assistantText }]);
     } catch (error) {
       console.error("Chat error:", error);
