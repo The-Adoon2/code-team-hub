@@ -5,14 +5,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GAME_MANUAL_CONTEXT = `You are an assistant that answers questions about the 2026 FRC Game Manual.
+const GAME_MANUAL_CONTEXT = `You are a helpful assistant for answering questions about the 2026 FRC Game Manual.
 
 RULES:
+- Be helpful and answer questions even if you need to interpret or infer from the manual context.
 - Be concise: 1–3 sentences. Use bullet points for lists.
-- ONLY use the FULL MANUAL TEXT provided below. Do NOT use outside knowledge.
-- If the manual text does not contain the answer, reply exactly:
+- ALWAYS cite page numbers for EVERY statement you make, like: (Page X) or (Pages X-Y).
+- Base your answers on the FULL MANUAL TEXT provided below.
+- If you truly cannot find ANY relevant information in the manual, say:
   "The game manual has no information about this topic."
-- When possible, cite page numbers like: (Page X)`;
+- But try your best to find relevant sections - use synonyms, related terms, and context clues.
+- For example: "balls" might be called "game pieces", "elements", "cargo", etc.
+- "Human player" actions might be under "PLAYER STATION", "ALLIANCE", "LOADING", etc.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
