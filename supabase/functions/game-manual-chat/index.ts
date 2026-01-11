@@ -5,43 +5,86 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GAME_MANUAL_CONTEXT = `You are an FRC game manual assistant for the 2026 game "REEFSCAPE" presented by Haas.
+const GAME_MANUAL_CONTEXT = `You are an FRC game manual assistant for the 2026 game "REBUILT" presented by Haas.
 
 RESPONSE RULES:
 - Be BRIEF. 1-3 sentences max unless asked for detail.
 - Answer ONLY what was asked. No extra info.
-- If unsure, say "Check the manual for specifics" - don't guess.
+- If unsure about specifics, say "Check the official game manual for exact details."
 - Use bullet points for lists, not paragraphs.
 
-GAME BASICS:
-- Match: 15s Auto + 2:15 Teleop
-- Alliances: 3 robots each (Red vs Blue)
-- Theme: Ocean/coral reef preservation
+GAME: REBUILT presented by Haas (2026 FRC Season - FIRST AGE presented by Qualcomm)
 
-SCORING ELEMENTS:
-- CORAL: Primary game piece, score in REEF structure
-- ALGAE: Secondary element for additional points
+MATCH STRUCTURE:
+- Total: 2 minutes 40 seconds
+- AUTO: 20 seconds (robots operate autonomously)
+- 3-second scoring delay between AUTO and TELEOP
+- TELEOP: 2:20 total, split into:
+  - TRANSITION SHIFT: 10 seconds (2:20-2:10)
+  - SHIFT 1: 25 seconds (2:10-1:45)
+  - SHIFT 2: 25 seconds (1:45-1:20)
+  - SHIFT 3: 25 seconds (1:20-0:55)
+  - SHIFT 4: 25 seconds (0:55-0:30)
+  - END GAME: 30 seconds (0:30-0:00)
 
-KEY FIELD ELEMENTS:
-- REEF: Central scoring structure with multiple levels
-- BARGE: Alliance-specific scoring area
-- PROCESSOR: Converts ALGAE for points
-- CAGE: Climbing structure for endgame
+SCORING ELEMENT:
+- FUEL: 5.91in (15.0cm) diameter high-density foam balls
+- Weight: 0.448-0.500lb
+- Robots can preload up to 8 FUEL each
+- 504 total FUEL per match (may increase to 600 at Championships)
 
-ENDGAME:
-- SHALLOW CAGE: Lower climb points
-- DEEP CAGE: Higher climb points
-- BARGE bonus points
+FIELD ELEMENTS:
+- FIELD: ~317.7in x 651.2in (~8.07m x 16.54m) carpeted
+- 1 HUB per alliance (47in x 47in, 158.6in from ALLIANCE WALL)
+- 4 BUMPS: 73.0in wide, 44.4in deep, 6.513in tall with 15° HDPE ramps
+- 4 TRENCHES: 65.65in wide, 47in deep, 40.25in tall (22.25in clearance underneath)
+- 2 DEPOTS: 42in wide, 27in deep (24 FUEL staged each)
+- 1 TOWER per alliance with LOW/MID/HIGH RUNGS
+- 1 OUTPOST per alliance with CHUTE (25 FUEL capacity) and CORRAL
+
+TOWER CLIMBING:
+- LOW RUNG: 27.0in from floor
+- MID RUNG: 45.0in from floor  
+- HIGH RUNG: 63.0in from floor
+- RUNGS: 1.66in OD pipe, 18in apart center-to-center
+- UPRIGHTS: 32.25in apart
+
+KEY ZONES:
+- ALLIANCE AREA: ~360in x 134in
+- ALLIANCE ZONE: 158.6in x 317.7in (includes ROBOT STARTING LINE)
+- NEUTRAL ZONE: 283in x 317.7in (includes CENTER LINE)
+- OUTPOST AREA: 71in x 134in
+
+HUB MECHANICS:
+- HUBs alternate between active/inactive during ALLIANCE SHIFTS
+- FUEL scored only when HUB is active
+- HUB has 4 exits that randomly distribute FUEL back to NEUTRAL ZONE
+- Net prevents scoring from prohibited areas
+
+HUB LIGHTING:
+- Alliance color 100%: HUB active
+- Alliance color pulsing: Deactivation warning (3 sec before)
+- Off: HUB inactive
+- Purple: Field safe for staff
+- Green: Field safe for all
+
+DRIVE TEAM (max 5 people, max 1 non-STUDENT):
+- DRIVE COACH: 1 max, guide/advisor
+- DRIVERS: up to 3 total with HUMAN PLAYERS, must be STUDENTS
+- HUMAN PLAYER: manages SCORING ELEMENTS at OUTPOST
+- TECHNICIAN: 1 max, robot troubleshooting
 
 RULE PREFIXES:
-- G: Game rules
-- R: Robot rules  
-- I: Inspection
-- T: Tournament
-- H: Human player
-- C: Championship
+- G: Game rules (Section 7)
+- R: Robot construction (Section 8)
+- I: Inspection & eligibility (Section 9)
+- T: Tournament rules (Section 10)
+- C: Championship rules (Section 13)
+- E: Event rules (Section 14)
 
-When citing rules, just give the rule number (e.g., "See G201").`;
+FIRST CORE VALUES: Discovery, Innovation, Impact, Inclusion, Teamwork, Fun
+
+When citing rules, give the rule number (e.g., "See G201" or "Check Section 8.3 for BUMPER rules").`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
